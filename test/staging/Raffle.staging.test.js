@@ -8,8 +8,10 @@ developmentChains.includes(network.name)
           let deployer
           let bettor
           let raffle
-          let raffleAddress = "0xf140EDC9DF5912951e2aC6051730a3803C454DeB"
-          const betAmount = ethers.utils.parseEther("0.1")
+          let raffleAddress = "0xe479D8d4db75214b2699959d18fB3Aa0c4637158"
+          let mockUSDC
+          let usdcAddress = network.config.usdcAddress
+          const betAmount = 5 * 10 ** 6 // $5
 
           beforeEach(async function () {
               const accounts = await ethers.getSigners()
@@ -18,11 +20,23 @@ developmentChains.includes(network.name)
 
               const RaffleFactory = await ethers.getContractFactory("Raffle")
               raffle = RaffleFactory.attach(raffleAddress)
+              const MockUSDCFactory = await ethers.getContractFactory(
+                  "MockUSDC"
+              )
+              mockUSDC = MockUSDCFactory.attach(usdcAddress)
+
+              console.log("")
               console.log("Raffle contract address:", raffleAddress)
+              console.log("mUSDC address:          ", usdcAddress)
+              console.log("")
           })
           it("should accept bets and decide a winner", async function () {
-              const deployerStartBalance = await deployer.getBalance()
-              const bettorStartBalance = await bettor.getBalance()
+              const deployerStartBalance = await mockUSDC.balanceOf(
+                  deployer.address
+              )
+              const bettorStartBalance = await mockUSDC.balanceOf(
+                  bettor.address
+              )
               const contractStartBalance = await raffle.getBalance()
               console.log(
                   "Deployer start balance:",
@@ -36,35 +50,86 @@ developmentChains.includes(network.name)
                   "Contract start balance:",
                   contractStartBalance.toString()
               )
-              let deployerGasSpent, bettorGasSpent, txResponse, txReceipt
+              console.log("")
 
-              const calculateGasSpend = (txReceipt) => {
-                  const { gasUsed, effectiveGasPrice } = txReceipt
-                  return gasUsed.mul(effectiveGasPrice)
-              }
+              /*console.log("Allowances:")
+              console.log(
+                  "deployer:",
+                  (
+                      await mockUSDC.allowance(deployer.address, raffle.address)
+                  ).toString()
+              )
+              console.log(
+                  "bettor  :",
+                  (
+                      await mockUSDC.allowance(bettor.address, raffle.address)
+                  ).toString()
+              )*/
 
-              // place bettor bet
-              const raffleConnectedContract = await raffle.connect(bettor)
-              await raffleConnectedContract.bet({
-                  value: betAmount,
-              })
-              console.log("Bettor bet placed.")
-              // place deployer bet
+              console.log("owner:", (await raffle.getOwner()).toString())
+              console.log("")
+
               console.log("Betting...")
-              txResponse = await raffle.bet({ value: betAmount })
-              txReceipt = await txResponse.wait(1)
-              deployerGasSpent = calculateGasSpend(txReceipt)
+              let txResponse
+              console.log("betAmount =", betAmount.toString())
+              // place deployer bet
+              txResponse = await mockUSDC.approve(raffle.address, betAmount * 2)
+              await txResponse.wait(1)
+              console.log("approved.")
+              console.log(
+                  "deployer allowance:",
+                  (
+                      await mockUSDC.allowance(deployer.address, raffle.address)
+                  ).toString()
+              )
+              await raffle.bet(betAmount)
               console.log("Deployer bet placed.")
+              // place bettor bet
+              const mockUSDCConnectedContract = await mockUSDC.connect(bettor)
+              console.log("mockUSD contract connected")
+              txResponse = await mockUSDCConnectedContract.approve(
+                  raffle.address,
+                  betAmount * 2
+              )
+              await txResponse.wait(1)
+              console.log("approved")
+              console.log(
+                  "bettor allowance:",
+                  (
+                      await mockUSDC.allowance(bettor.address, raffle.address)
+                  ).toString()
+              )
+              const raffleConnectedContract = await raffle.connect(bettor)
+              await raffleConnectedContract.bet(betAmount)
+              console.log("Bettor bet placed.")
               console.log("All bets placed.")
+              console.log("")
+              //console.log("skipping bets")
+
+              console.log(
+                  "count bettors:",
+                  (await raffle.getCountBettors()).toString()
+              )
+              console.log(
+                  "deployer balance:",
+                  (await mockUSDC.balanceOf(deployer.address)).toString()
+              )
+              console.log(
+                  "bettor balance:",
+                  (await mockUSDC.balanceOf(bettor.address)).toString()
+              )
+              console.log(
+                  "contract balance:",
+                  (await raffle.getBalance()).toString()
+              )
+              console.log("")
 
               // request random number
               console.log("Requesting...")
               txResponse = await raffle.requestRandomWords()
-              txReceipt = await txResponse.wait(1)
-              deployerGasSpent = deployerGasSpent.add(
-                  calculateGasSpend(txReceipt)
-              )
+              await txResponse.wait(1)
               console.log("Random words request sent.")
+              console.log("")
 
               // wait for response
               console.log("Awaiting response...")
@@ -73,11 +138,14 @@ developmentChains.includes(network.name)
                   countBettors = await raffle.getCountBettors()
               }
               console.log("Bet settled!")
+              console.log("")
 
               // assert
               const contractEndBalance = await raffle.getBalance()
-              const deployerEndBalance = await deployer.getBalance()
-              const bettorEndBalance = await bettor.getBalance()
+              const deployerEndBalance = await mockUSDC.balanceOf(
+                  deployer.address
+              )
+              const bettorEndBalance = await mockUSDC.balanceOf(bettor.address)
               console.log(
                   "Deployer end balance:",
                   deployerEndBalance.toString()
@@ -87,19 +155,13 @@ developmentChains.includes(network.name)
                   "Contract end balance:",
                   contractEndBalance.toString()
               )
-              console.log("Deployer gas spent:  ", deployerGasSpent.toString())
+
               assert.equal(contractEndBalance.toString(), "0")
               assert(
                   deployerStartBalance.toString() ==
-                      deployerEndBalance
-                          .add(deployerGasSpent)
-                          .add(betAmount)
-                          .toString() ||
+                      deployerEndBalance.add(betAmount).toString() ||
                       deployerStartBalance.toString() ==
-                          deployerEndBalance
-                              .add(deployerGasSpent)
-                              .sub(betAmount)
-                              .toString()
+                          deployerEndBalance.sub(betAmount).toString()
               )
               console.log("Done!")
           })

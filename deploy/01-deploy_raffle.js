@@ -1,5 +1,9 @@
 const { network } = require("hardhat")
-const { developmentChains, networkConfig } = require("../helper-hardhat-config")
+const {
+    developmentChains,
+    networkConfig,
+    POOCOIN_ADDRESS,
+} = require("../helper-hardhat-config")
 
 module.exports = async ({ getNamedAccounts, deployments }) => {
     const { deploy, log } = deployments
@@ -10,17 +14,21 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     const keyHash = networkConfig[chainId]["vrfKeyHash"]
 
     let vrfCoordinator
+    let usdcAddress
 
     if (developmentChains.includes(network.name)) {
         const vrfCoordinatorMock = await deployments.get("VRFCoordinatorV2Mock")
+        const mockUSDC = await deployments.get("MockUSDC")
         vrfCoordinator = vrfCoordinatorMock.address
+        usdcAddress = mockUSDC.address
     } else {
         vrfCoordinator = networkConfig[chainId]["vrfCoordinatorAddress"]
+        usdcAddress = network.config.usdcAddress
     }
 
-    const gambleGame = await deploy("Raffle", {
+    const raffle = await deploy("Raffle", {
         from: deployer,
-        args: [subscriptionId, keyHash, vrfCoordinator],
+        args: [subscriptionId, keyHash, vrfCoordinator, usdcAddress],
         log: true,
         waitConfirmations: network.config.blockConfirmations || 1,
     })
@@ -28,4 +36,4 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     log("---------------------------------")
 }
 
-module.exports.tags = ["all", "gamblegame"]
+module.exports.tags = ["all", "raffle"]

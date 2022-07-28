@@ -10,13 +10,13 @@ const PRIVATE_KEY2 = process.env.PRIVATE_KEY2
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
 const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY
 const SUBSCRIPTION_ID = process.env.SUBSCRIPTION_ID
+const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL
 
 module.exports = {
     defaultNetwork: "hardhat",
     networks: {
         hardhat: {
             chainId: 31337,
-            // gasPrice: 130000000000,
             subscriptionId: 1,
             keyHash:
                 "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
@@ -30,6 +30,13 @@ module.exports = {
             keyHash:
                 "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
             vrfCoordinator: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+            usdcAddress: "0x7fA74B4b920f24386b7f25128C87909944fA7aF0",
+        },
+        goerli: {
+            url: GOERLI_RPC_URL,
+            accounts: [PRIVATE_KEY, PRIVATE_KEY2],
+            chainId: 5,
+            blockConfirmations: 6,
         },
     },
     solidity: {
@@ -54,8 +61,8 @@ module.exports = {
     },
     namedAccounts: {
         deployer: {
-            default: 0, // here this will by default take the first account as deployer
-            1: 0, // similarly on mainnet it will take the first account as deployer. Note though that depending on how hardhat network are configured, the account 0 on one network can be different than on another
+            default: 0,
+            1: 0,
         },
         bettor: {
             default: 1,
@@ -63,6 +70,6 @@ module.exports = {
         },
     },
     mocha: {
-        timeout: 120000,
+        timeout: 150000,
     },
 }

@@ -18,9 +18,19 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             log: true, // console.log progress
             args: [BASE_FEE, GAS_PRICE_LINK], // contstructor arguments
         })
-        const vrfCoordinatorMock = await deployments.get("VRFCoordinatorV2Mock")
+        //const vrfCoordinatorMock = await deployments.get("VRFCoordinatorV2Mock")
         //const subId = await vrfCoordinatorMock.createSubscription();
         //log(`Subscription ID: ${subId}`);
+
+        // deploy mock USDC
+        await deploy("MockUSDC", {
+            contract: "MockUSDC",
+            from: deployer,
+            log: true,
+            args: ["MockUSDC", "mUSDc"],
+        })
+        //const mockUSDC = await deployments.get("VRFCoordinatorV2Mock")
+
         log("Mocks deployed!")
         log("-----------------------------")
     }

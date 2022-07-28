@@ -16,6 +16,7 @@ const networkConfig = {
         vrfCoordinatorAddress: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
         vrfKeyHash:
             "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        usdcAddress: "0x7fA74B4b920f24386b7f25128C87909944fA7aF0",
     },
     31337: {
         name: "hardhat",
