@@ -12,6 +12,7 @@ RaffleEther.test.js
 RaffleEther.staging.test.js
 scripts
 RaffleEther.sol
+gas-report-settle.txt
 
 #Hardhat files
 cache

@@ -8,7 +8,6 @@ const {
 module.exports = async ({ getNamedAccounts, deployments }) => {
     const { deploy, log } = deployments
     const { deployer } = await getNamedAccounts()
-    const chainId = network.config.chainId
 
     if (developmentChains.includes(network.name)) {
         log("Local network detected! Deploying mocks...")
@@ -18,9 +17,6 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             log: true, // console.log progress
             args: [BASE_FEE, GAS_PRICE_LINK], // contstructor arguments
         })
-        //const vrfCoordinatorMock = await deployments.get("VRFCoordinatorV2Mock")
-        //const subId = await vrfCoordinatorMock.createSubscription();
-        //log(`Subscription ID: ${subId}`);
 
         // deploy mock USDC
         await deploy("MockUSDC", {
@@ -29,7 +25,6 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             log: true,
             args: ["MockUSDC", "mUSDc"],
         })
-        //const mockUSDC = await deployments.get("VRFCoordinatorV2Mock")
 
         log("Mocks deployed!")
         log("-----------------------------")

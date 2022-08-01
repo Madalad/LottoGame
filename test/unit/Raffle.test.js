@@ -12,7 +12,7 @@ const {
           let raffle
           let vrfCoordinatorV2Mock
           let mockUSDC
-          const chainId = 31337 // hardhat localhost
+          const chainId = network.config.chainId
           let betAmount
           beforeEach(async function () {
               accounts = await ethers.getSigners()
@@ -26,19 +26,17 @@ const {
               )
               mockUSDC = await ethers.getContract("MockUSDC", deployer.address)
 
+              const subscriptionId = network.config.subscriptionId
               const subscriptionTx =
                   await vrfCoordinatorV2Mock.createSubscription()
-              const txReceipt = await subscriptionTx.wait(1)
-              const fundTx = await vrfCoordinatorV2Mock.fundSubscription(
-                  1,
+              await subscriptionTx.wait(1)
+              await vrfCoordinatorV2Mock.fundSubscription(
+                  subscriptionId,
                   ethers.utils.parseEther("1")
               )
-              await vrfCoordinatorV2Mock.addConsumer(
-                  1, // subscriptionId
-                  raffle.address
-              )
+              await vrfCoordinatorV2Mock.addConsumer(1, raffle.address)
           })
-          describe("constructor and getters", async function () {
+          describe("constructor", async function () {
               it("should set state variables in the constructor", async function () {
                   const coordinatorAddress = await raffle.s_coordinatorAddress()
                   const owner = await raffle.getOwner()
@@ -48,8 +46,8 @@ const {
                   assert.equal(coordinatorAddress, vrfCoordinatorV2Mock.address)
                   assert.equal(owner, deployer.address)
                   assert.equal(
-                      subscriptionId,
-                      networkConfig[chainId]["subscriptionId"]
+                      subscriptionId.toString(),
+                      network.config.subscriptionId.toString()
                   )
                   assert.equal(keyHash, networkConfig[chainId]["vrfKeyHash"])
                   assert.equal(acceptingBets, true)
@@ -221,10 +219,6 @@ const {
                   const allowance = await raffle.getAllowance()
                   assert.equal(allowance.toString(), betAmount.toString())
               })
-              it("should get correct latest random word", async function () {
-                  const response = await raffle.getLatestRandomWord()
-                  assert.equal(response.toString(), "0")
-              })
           })
           describe("receive", async function () {
               it("should revert with correct error message", async function () {
@@ -238,4 +232,150 @@ const {
                   )
               })
           })
+          // to run below test, settleRound() must be set from internal to public in Raffle.sol
+          /*describe("settle round", async function () {
+              it("should settle bets", async function () {
+                  const deployerStartBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  // place bet
+                  await mockUSDC.approve(raffle.address, betAmount)
+                  await raffle.bet(betAmount)
+                  // settle
+                  const txResponse = await raffle.settleRound(1234567890)
+                  const txReceipt = await txResponse.wait(1)
+                  const { events } = txReceipt
+                  const event = events[events.length - 1]["event"]
+                  const args = events[events.length - 1]["args"]
+                  //assert
+                  const deployerEndBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  const contractEndBalance = await mockUSDC.balanceOf(
+                      raffle.address
+                  )
+                  assert.equal(event.toString(), "RoundSettled")
+                  assert.equal(
+                      args["potAmount"].toString(),
+                      betAmount.toString()
+                  )
+                  assert.equal(
+                      args["winner"].toString(),
+                      deployer.address.toString()
+                  )
+                  assert.equal(
+                      args["winningBet"].toString(),
+                      betAmount.toString()
+                  )
+                  assert.equal(args["countParticipants"].toString(), "1")
+                  assert.equal(
+                      deployerEndBalance.toString(),
+                      deployerStartBalance.toString()
+                  )
+                  assert.equal(contractEndBalance.toString(), "0")
+              })
+              it("should work with 2 bettors", async function () {
+                  accounts = await ethers.getSigners()
+                  bettor = accounts[1]
+                  const deployerStartBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  const bettorStartBalance = await mockUSDC.balanceOf(
+                      bettor.address
+                  )
+                  // place bets
+                  await mockUSDC.approve(raffle.address, betAmount)
+                  await raffle.bet(betAmount)
+                  await mockUSDC.transfer(bettor.address, betAmount)
+                  const raffleConnectedContract = await raffle.connect(bettor)
+                  const mockUSDCConnectedContract = await mockUSDC.connect(
+                      bettor
+                  )
+                  await mockUSDCConnectedContract.approve(
+                      raffle.address,
+                      betAmount
+                  )
+                  await raffleConnectedContract.bet(betAmount)
+                  // settle
+                  const txResponse = await raffle.settleRound(1234567890) // deployer will win
+                  const txReceipt = await txResponse.wait(1)
+                  const { events } = txReceipt
+                  const event = events[events.length - 1]["event"]
+                  const args = events[events.length - 1]["args"]
+                  //assert
+                  const deployerEndBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  const bettorEndBalance = await mockUSDC.balanceOf(
+                      bettor.address
+                  )
+                  const contractEndBalance = await mockUSDC.balanceOf(
+                      raffle.address
+                  )
+                  assert.equal(event.toString(), "RoundSettled")
+                  assert.equal(
+                      args["potAmount"].toString(),
+                      (betAmount * 2).toString()
+                  )
+                  assert.equal(
+                      args["winner"].toString(),
+                      deployer.address.toString()
+                  )
+                  assert.equal(
+                      args["winningBet"].toString(),
+                      betAmount.toString()
+                  )
+                  assert.equal(args["countParticipants"].toString(), "2")
+                  assert.equal(
+                      deployerEndBalance.toString(),
+                      deployerStartBalance.toString()
+                  )
+                  assert.equal(bettorEndBalance.toString(), "0")
+                  assert.equal(contractEndBalance.toString(), "0")
+              })
+              it("should work with rake", async function () {
+                  const deployerStartBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  await raffle.setRake(100)
+                  // place bet
+                  await mockUSDC.approve(raffle.address, betAmount)
+                  await raffle.bet(betAmount)
+                  // settle
+                  const txResponse = await raffle.settleRound(1234567890)
+                  const txReceipt = await txResponse.wait(1)
+                  const { events } = txReceipt
+                  const event = events[events.length - 1]["event"]
+                  const args = events[events.length - 1]["args"]
+                  //assert
+                  const deployerEndBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  const contractEndBalance = await mockUSDC.balanceOf(
+                      raffle.address
+                  )
+                  assert.equal(event.toString(), "RoundSettled")
+                  assert.equal(
+                      args["potAmount"].toString(),
+                      betAmount.toString()
+                  )
+                  assert.equal(
+                      args["winner"].toString(),
+                      deployer.address.toString()
+                  )
+                  assert.equal(
+                      args["winningBet"].toString(),
+                      betAmount.toString()
+                  )
+                  assert.equal(args["countParticipants"].toString(), "1")
+                  assert.equal(
+                      deployerEndBalance.toString(),
+                      deployerStartBalance.sub(betAmount * 0.01).toString()
+                  )
+                  assert.equal(contractEndBalance.toString(), "0")
+              })
+              it("should work with 0 bettors", async function () {
+                  await raffle.settleRound(1234567890)
+              })
+          })*/
       })

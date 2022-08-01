@@ -7,10 +7,16 @@ require("hardhat-deploy")
 const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 const PRIVATE_KEY2 = process.env.PRIVATE_KEY2
+const PRIVATE_KEY3 = process.env.PRIVATE_KEY3
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY
 const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY
-const SUBSCRIPTION_ID = process.env.SUBSCRIPTION_ID
+const RINKEBY_SUBSCRIPTION_ID = process.env.RINKEBY_SUBSCRIPTION_ID
+const FUJI_SUBSCRIPTION_ID = process.env.FUJI_SUBSCRIPTION_ID
 const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL
+const AVALANCHE_RPC_URL = process.env.AVALANCHE_RPC_URL
+const FUJI_RPC_URL = process.env.FUJI_RPC_URL
+const RINKEBY_RAFFLE_ADDRESS = process.env.RINKEBY_RAFFLE_ADDRESS
+const FUJI_RAFFLE_ADDRESS = process.env.FUJI_RAFFLE_ADDRESS
 
 module.exports = {
     defaultNetwork: "hardhat",
@@ -18,25 +24,34 @@ module.exports = {
         hardhat: {
             chainId: 31337,
             subscriptionId: 1,
-            keyHash:
-                "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
         },
         rinkeby: {
             url: RINKEBY_RPC_URL,
-            accounts: [PRIVATE_KEY, PRIVATE_KEY2],
+            accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
             chainId: 4,
             blockConfirmations: 6,
-            subscriptionId: SUBSCRIPTION_ID,
-            keyHash:
-                "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
-            vrfCoordinator: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
-            usdcAddress: "0x7fA74B4b920f24386b7f25128C87909944fA7aF0",
+            subscriptionId: RINKEBY_SUBSCRIPTION_ID,
+            raffleAddress: RINKEBY_RAFFLE_ADDRESS,
         },
         goerli: {
             url: GOERLI_RPC_URL,
-            accounts: [PRIVATE_KEY, PRIVATE_KEY2],
+            accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
             chainId: 5,
             blockConfirmations: 6,
+        },
+        avalanche: {
+            url: AVALANCHE_RPC_URL,
+            accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
+            chainId: 43114,
+            blockConfirmations: 6,
+        },
+        fuji: {
+            url: FUJI_RPC_URL,
+            accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
+            chainId: 43113,
+            blockConfirmations: 6,
+            subscriptionId: FUJI_SUBSCRIPTION_ID,
+            raffleAddress: FUJI_RAFFLE_ADDRESS,
         },
     },
     solidity: {
@@ -53,11 +68,12 @@ module.exports = {
         apiKey: ETHERSCAN_API_KEY,
     },
     gasReporter: {
-        enabled: true,
+        enabled: false,
         currency: "USD",
         outputFile: "gas-report.txt",
         noColors: true,
         coinmarketcap: COINMARKETCAP_API_KEY,
+        token: "AVAX",
     },
     namedAccounts: {
         deployer: {
@@ -68,8 +84,12 @@ module.exports = {
             default: 1,
             1: 0,
         },
+        vault: {
+            default: 2,
+            1: 0,
+        },
     },
     mocha: {
-        timeout: 150000,
+        timeout: 120000,
     },
 }

@@ -23,10 +23,12 @@ contract Raffle is VRFConsumerBaseV2 {
     bytes32 s_keyHash;
     uint256 s_requestId;
     uint64 s_subscriptionId;
+    address s_vaultAddress;
 
     address s_owner;
-    uint256 s_latestRandomWord;
     bool s_acceptingBets;
+
+    uint16 s_rake;
 
     struct Bet {
         address bettor;
@@ -53,7 +55,8 @@ contract Raffle is VRFConsumerBaseV2 {
         uint64 _subscriptionId,
         bytes32 _keyHash,
         address _vrfCoordinator,
-        address _USDCAddress
+        address _USDCAddress,
+        address _vaultAddress
         ) VRFConsumerBaseV2(_vrfCoordinator) {
             USDc = ERC20(_USDCAddress);
             COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
@@ -61,7 +64,9 @@ contract Raffle is VRFConsumerBaseV2 {
             s_owner = msg.sender;
             s_subscriptionId = _subscriptionId;
             s_keyHash = _keyHash;
+            s_vaultAddress = _vaultAddress;
             s_acceptingBets = true;
+            s_rake = 0;
     }
     
     modifier onlyOwner {
@@ -69,6 +74,9 @@ contract Raffle is VRFConsumerBaseV2 {
         _;
     }
 
+    /**
+     * @notice Requests a random number from the VRF coordinator
+     */
     function requestRandomWords() external {
     // Will revert if subscription is not set and funded.
         s_acceptingBets = false;
@@ -81,21 +89,27 @@ contract Raffle is VRFConsumerBaseV2 {
         );
     }
 
+    /**
+     * @notice This function is called once the random number is acquired
+     */
     function fulfillRandomWords(
         uint256, /* requestId */
         uint256[] memory randomWords
     ) internal override {
-        s_latestRandomWord = randomWords[0];
-        settleRound();
+        settleRound(randomWords[0]);
     }
 
-    function settleRound() internal {
+    /**
+     * @notice Picks a winner using the random number and resets state variables
+     *
+     * @param _randomWord the random number received from the VRF coordinator
+     */
+    function settleRound(uint256 _randomWord) internal {
         Bet[] memory unsettledBets = s_unsettledBets;
         uint256 countBettors = unsettledBets.length;
         if (countBettors > 0) {
-            uint256 latestRandomWord = s_latestRandomWord;
             uint256 potAmount = USDc.balanceOf(address(this));
-            uint256 randomNumber = latestRandomWord % potAmount;
+            uint256 randomNumber = _randomWord % potAmount;
             uint256 totalUSDc;
             address winner;
             uint256 winningBet;
@@ -108,7 +122,8 @@ contract Raffle is VRFConsumerBaseV2 {
                     break;
                 }
             }
-            USDc.transfer(winner, potAmount);
+            USDc.transfer(winner, potAmount * (10000 - s_rake) / 10000);
+            USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
             delete s_unsettledBets;
             emit RoundSettled(
                 block.timestamp,
@@ -121,8 +136,12 @@ contract Raffle is VRFConsumerBaseV2 {
         }
         s_acceptingBets = true;
     }
+    
 
-    // User must approve this contract to spend their USDc
+    /**
+     * @notice Requests a random number from the VRF coordinator
+     * @notice User must approve this contract address to spend their USDc
+     */
     function bet(uint256 _betAmount) public {
         if (!s_acceptingBets) {revert Raffle__BettingIsClosed();}
         if (_betAmount == 0) {revert Raffle__InsufficientBetAmount();}
@@ -137,10 +156,9 @@ contract Raffle is VRFConsumerBaseV2 {
         );
     }
 
-    function getAllowance() public view returns (uint256) {
-        return USDc.allowance(msg.sender, address(this));
-    }
-
+    /**
+     * @notice Empties unsettledBets array and refunds user's USDc
+     */
     function refundBets() public onlyOwner {
         Bet[] memory unsettledBets = s_unsettledBets;
         uint256 length = unsettledBets.length;
@@ -164,6 +182,10 @@ contract Raffle is VRFConsumerBaseV2 {
         return s_keyHash;
     }
 
+    function getRake() external view onlyOwner returns(uint256) {
+        return s_rake;
+    }
+
     function getAcceptingBets() external view onlyOwner returns(bool) {
         return s_acceptingBets;
     }
@@ -176,8 +198,13 @@ contract Raffle is VRFConsumerBaseV2 {
         return s_unsettledBets.length;
     }
 
-    function getLatestRandomWord() external view onlyOwner returns(uint256) {
-        return s_latestRandomWord;
+    function getAllowance() public view returns (uint256) {
+        return USDc.allowance(msg.sender, address(this));
+    }
+
+    function setRake(uint16 _rake) external onlyOwner {
+        require(_rake <= 10000, "Cannot set rake to >10000 (100%).");
+        s_rake = _rake;
     }
 
     function setSubscriptionId(uint64 _subscriptionId) external onlyOwner {
