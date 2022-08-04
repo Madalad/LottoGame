@@ -15,8 +15,8 @@ const FUJI_SUBSCRIPTION_ID = process.env.FUJI_SUBSCRIPTION_ID
 const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL
 const AVALANCHE_RPC_URL = process.env.AVALANCHE_RPC_URL
 const FUJI_RPC_URL = process.env.FUJI_RPC_URL
-const RINKEBY_RAFFLE_ADDRESS = process.env.RINKEBY_RAFFLE_ADDRESS
-const FUJI_RAFFLE_ADDRESS = process.env.FUJI_RAFFLE_ADDRESS
+const RINKEBY_CONTRACT_ADDRESS = process.env.RINKEBY_CONTRACT_ADDRESS
+const FUJI_CONTRACT_ADDRESS = process.env.FUJI_CONTRACT_ADDRESS
 
 module.exports = {
     defaultNetwork: "hardhat",
@@ -29,9 +29,9 @@ module.exports = {
             url: RINKEBY_RPC_URL,
             accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
             chainId: 4,
-            blockConfirmations: 6,
+            blockConfirmations: 1,
             subscriptionId: RINKEBY_SUBSCRIPTION_ID,
-            raffleAddress: RINKEBY_RAFFLE_ADDRESS,
+            contractAddress: RINKEBY_CONTRACT_ADDRESS,
         },
         goerli: {
             url: GOERLI_RPC_URL,
@@ -49,9 +49,9 @@ module.exports = {
             url: FUJI_RPC_URL,
             accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
             chainId: 43113,
-            blockConfirmations: 6,
+            blockConfirmations: 2,
             subscriptionId: FUJI_SUBSCRIPTION_ID,
-            raffleAddress: FUJI_RAFFLE_ADDRESS,
+            contractAddress: FUJI_CONTRACT_ADDRESS,
         },
     },
     solidity: {

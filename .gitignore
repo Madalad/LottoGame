@@ -10,8 +10,10 @@ deployments
 01-deploy_raffleether.js
 RaffleEther.test.js
 RaffleEther.staging.test.js
-scripts
-RaffleEther.sol
+testTime.js
+testSigners.js
+approveUSDC.js
+RaffleEther.txt
 gas-report-settle.txt
 
 #Hardhat files

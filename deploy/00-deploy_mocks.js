@@ -11,6 +11,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
     if (developmentChains.includes(network.name)) {
         log("Local network detected! Deploying mocks...")
+
+        // deploy mock coordinator
         await deploy("VRFCoordinatorV2Mock", {
             contract: "VRFCoordinatorV2Mock",
             from: deployer, // account deploying the contract
@@ -19,12 +21,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         })
 
         // deploy mock USDC
-        await deploy("MockUSDC", {
-            contract: "MockUSDC",
-            from: deployer,
-            log: true,
-            args: ["MockUSDC", "mUSDc"],
-        })
+        if (developmentChains.includes(network.name)) {
+            await deploy("MockUSDC", {
+                contract: "MockUSDC",
+                from: deployer,
+                log: true,
+                args: ["MockUSDC", "mUSDc"],
+            })
+        }
 
         log("Mocks deployed!")
         log("-----------------------------")
