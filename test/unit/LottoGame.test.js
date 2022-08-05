@@ -115,7 +115,7 @@ const {
 
                   let currentBet
                   for (i = 0; i < countBettors; i++) {
-                      currentBet = await lottoGame.s_unsettledBets(i)
+                      currentBet = await lottoGame.getUnsettledBet(i)
                       assert.equal(
                           currentBet["betAmount"].toString(),
                           betAmount.toString()
@@ -256,6 +256,16 @@ const {
                           lottoGame.address
                       )
                   })
+              })
+              it("should return unsettled bets", async function () {
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  await lottoGame.bet(betAmount)
+                  const bet = await lottoGame.getUnsettledBet(0)
+                  assert.equal(
+                      bet.bettor.toString(),
+                      deployer.address.toString()
+                  )
+                  assert.equal(bet.betAmount.toString(), betAmount.toString())
               })
           })
 

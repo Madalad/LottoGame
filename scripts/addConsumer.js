@@ -29,15 +29,20 @@ async function main() {
     console.log("")
     console.log("Adding consumer...")
     const subscriptionId = network.config.subscriptionId
-    const txResponse = await vrfCoordinatorV2.addConsumer(
-        subscriptionId,
-        lottoGameAddress
-    )
-    const txReceipt = await txResponse.wait(2)
-    if (txReceipt.events[0].event == "SubscriptionConsumerAdded") {
-        console.log("Consumer successfully added!")
-    } else {
-        console.log("Consumer not added successfully.")
+    try {
+        const txResponse = await vrfCoordinatorV2.addConsumer(
+            subscriptionId,
+            lottoGameAddress
+        )
+        const txReceipt = await txResponse.wait(2)
+        if (txReceipt.events[0].event == "SubscriptionConsumerAdded") {
+            console.log("Consumer successfully added!")
+        } else {
+            console.log("Consumer not added successfully.")
+        }
+    } catch (e) {
+        console.log(e)
+        console.log("Remember to update the contract address in .env file")
     }
 }
 

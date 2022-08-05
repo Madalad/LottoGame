@@ -37,7 +37,7 @@ contract LottoGame is VRFConsumerBaseV2 {
         address bettor;
         uint256 betAmount;
     }
-    Bet[] public s_unsettledBets;
+    Bet[] private s_unsettledBets;
 
     event BetAccepted(
         uint256 blockTimestamp,
@@ -90,7 +90,7 @@ contract LottoGame is VRFConsumerBaseV2 {
      * @notice Requests a random number from the VRF coordinator
      * @dev Will revert if subscription is not set and funded.
      */
-    function requestRandomWords() external {
+    function requestRandomWords() external onlyOwner {
         if (s_unsettledBets.length == 0) {revert LottoGame__NoBetsToSettle();}
         s_acceptingBets = false;
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
@@ -198,11 +198,11 @@ contract LottoGame is VRFConsumerBaseV2 {
         return i_coordinatorAddress;
     }
 
-    function getKeyHash() external view onlyOwner returns(bytes32) {
+    function getKeyHash() external view returns(bytes32) {
         return i_keyHash;
     }
 
-    function getSubscriptionId() external view onlyOwner returns(uint256) {
+    function getSubscriptionId() external view returns(uint256) {
         return i_subscriptionId;
     }
 
@@ -210,24 +210,28 @@ contract LottoGame is VRFConsumerBaseV2 {
         return s_vaultAddress;
     }
 
-    function getRake() external view onlyOwner returns(uint256) {
+    function getRake() external view returns(uint256) {
         return s_rake;
     }
 
-    function getAcceptingBets() external view onlyOwner returns(bool) {
+    function getAcceptingBets() external view returns(bool) {
         return s_acceptingBets;
     }
 
-    function getBalance() external view onlyOwner returns(uint256) {
+    function getBalance() external view returns(uint256) {
         return USDc.balanceOf(address(this));
     }
 
-    function getCountBettors() external view onlyOwner returns(uint256) {
+    function getCountBettors() external view returns(uint256) {
         return s_unsettledBets.length;
     }
 
     function getRecentWinner() external view returns(address) {
         return s_recentWinner;
+    }
+
+    function getUnsettledBet(uint256 _index) external view returns(Bet memory) {
+        return s_unsettledBets[_index];
     }
 
     function getAllowance() public view returns (uint256) {
