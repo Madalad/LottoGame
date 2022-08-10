@@ -229,11 +229,6 @@ const {
           })
 
           describe("getters", async function () {
-              it("should get a users allowance", async function () {
-                  await mockUSDC.approve(lottoGame.address, betAmount)
-                  const allowance = await lottoGame.getAllowance()
-                  assert.equal(allowance.toString(), betAmount.toString())
-              })
               it("should get the recent winner", async function () {
                   await mockUSDC.approve(lottoGame.address, betAmount)
                   await lottoGame.bet(betAmount)

@@ -234,10 +234,6 @@ contract LottoGame is VRFConsumerBaseV2 {
         return s_unsettledBets[_index];
     }
 
-    function getAllowance() public view returns (uint256) {
-        return USDc.allowance(msg.sender, address(this));
-    }
-
     function setRake(uint16 _rake) external onlyOwner {
         require(_rake <= 10000, "Cannot set rake to >10000 (100%).");
         s_rake = _rake;
