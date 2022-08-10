@@ -121,7 +121,6 @@ contract LottoGame is VRFConsumerBaseV2 {
     function settleRound(uint256 _randomWord) internal {
         Bet[] memory unsettledBets = s_unsettledBets;
         uint256 countBettors = unsettledBets.length;
-        //if (countBettors > 0) {
         uint256 potAmount = USDc.balanceOf(address(this));
         uint256 randomNumber = _randomWord % potAmount;
         uint256 totalUSDc;
@@ -148,7 +147,6 @@ contract LottoGame is VRFConsumerBaseV2 {
             winningBet,
             countBettors
         );
-        //}
         s_acceptingBets = true;
     }
     
@@ -235,7 +233,7 @@ contract LottoGame is VRFConsumerBaseV2 {
     }
 
     function setRake(uint16 _rake) external onlyOwner {
-        require(_rake <= 10000, "Cannot set rake to >10000 (100%).");
+        require(_rake <= 10000, "Cannot set rake to > 10000 (100%).");
         s_rake = _rake;
     }
 

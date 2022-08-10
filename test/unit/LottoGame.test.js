@@ -30,7 +30,7 @@ const {
               mockUSDC = await ethers.getContract("MockUSDC", deployer.address)
           })
 
-          describe("constructor", async function () {
+          describe("constructor", function () {
               it("should set state variables in the constructor", async function () {
                   const coordinatorAddress =
                       await lottoGame.getCoordinatorAddress()
@@ -52,7 +52,7 @@ const {
               })
           })
 
-          describe("bet", async function () {
+          describe("bet", function () {
               it("should allow multiple users to bet", async function () {
                   const accounts = await ethers.getSigners()
                   const countBettors = 5
@@ -145,7 +145,7 @@ const {
               })
           })
 
-          describe("refund", async function () {
+          describe("refund", function () {
               it("doesn't revert with no bets to refund", async function () {
                   let countBettors = await lottoGame.getCountBettors()
                   assert.equal(countBettors.toString(), "0")
@@ -219,7 +219,7 @@ const {
               })
           })
 
-          describe("setters", async function () {
+          describe("setters", function () {
               it("should update vaultAddress", async function () {
                   const newVaultAddress = accounts[3].address
                   await lottoGame.setVaultAddress(newVaultAddress)
@@ -228,7 +228,7 @@ const {
               })
           })
 
-          describe("getters", async function () {
+          describe("getters", function () {
               it("should get the recent winner", async function () {
                   await mockUSDC.approve(lottoGame.address, betAmount)
                   await lottoGame.bet(betAmount)
@@ -264,12 +264,14 @@ const {
               })
           })
 
-          describe("settle round", async function () {
+          describe("settle round", function () {
               it("should settle bets", async function () {
                   // place bets
                   for (i = 10; i < 15; i++) {
-                      mockUSDC.transfer(accounts[i].address, betAmount)
-                      mockUSDCConnectedContract = mockUSDC.connect(accounts[i])
+                      await mockUSDC.transfer(accounts[i].address, betAmount)
+                      mockUSDCConnectedContract = await mockUSDC.connect(
+                          accounts[i]
+                      )
                       await mockUSDCConnectedContract.approve(
                           lottoGame.address,
                           betAmount
@@ -328,8 +330,10 @@ const {
                   await lottoGame.setRake(100) // 1%
                   // place bets
                   for (i = 10; i < 15; i++) {
-                      mockUSDC.transfer(accounts[i].address, betAmount)
-                      mockUSDCConnectedContract = mockUSDC.connect(accounts[i])
+                      await mockUSDC.transfer(accounts[i].address, betAmount)
+                      mockUSDCConnectedContract = await mockUSDC.connect(
+                          accounts[i]
+                      )
                       await mockUSDCConnectedContract.approve(
                           lottoGame.address,
                           betAmount
