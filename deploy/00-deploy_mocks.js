@@ -12,6 +12,19 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     if (developmentChains.includes(network.name)) {
         log("Local network detected! Deploying mocks...")
 
+        // deploy MockUSDC and FreeBetToken
+        await deploy("MockUSDC", {
+            contract: "MockUSDC",
+            from: deployer,
+            log: true,
+            args: ["MockUSDC", "mUSDc"],
+        })
+        await deploy("FreeBetToken", {
+            contract: "FreeBetToken",
+            from: deployer,
+            log: true,
+            args: ["FreeBetToken", "FBT"],
+        })
         // deploy mock coordinator
         await deploy("VRFCoordinatorV2Mock", {
             contract: "VRFCoordinatorV2Mock",
@@ -19,16 +32,6 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             log: true, // console.log progress
             args: [BASE_FEE, GAS_PRICE_LINK], // contstructor arguments
         })
-
-        // deploy mock USDC
-        if (developmentChains.includes(network.name)) {
-            await deploy("MockUSDC", {
-                contract: "MockUSDC",
-                from: deployer,
-                log: true,
-                args: ["MockUSDC", "mUSDc"],
-            })
-        }
 
         log("Mocks deployed!")
         log("-----------------------------")

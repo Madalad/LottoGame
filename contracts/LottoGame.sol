@@ -33,6 +33,8 @@ contract LottoGame is VRFConsumerBaseV2 {
     uint16 private s_rake;
     address private s_recentWinner;
 
+    address private s_freeBetContractAddress;
+
     struct Bet {
         address bettor;
         uint256 betAmount;
@@ -86,6 +88,11 @@ contract LottoGame is VRFConsumerBaseV2 {
         _;
     }
 
+    modifier onlyFreeBetContractAddress {
+        require(msg.sender == s_freeBetContractAddress, "You cannot call this funcion.");
+        _;
+    }
+
     /**
      * @notice Requests a random number from the VRF coordinator
      * @dev Will revert if subscription is not set and funded.
@@ -118,7 +125,7 @@ contract LottoGame is VRFConsumerBaseV2 {
      *
      * @param _randomWord the random number received from the VRF coordinator
      */
-    function settleRound(uint256 _randomWord) internal {
+    function settleRound(uint256 _randomWord) /* internal */ public {
         Bet[] memory unsettledBets = s_unsettledBets;
         uint256 countBettors = unsettledBets.length;
         uint256 potAmount = USDc.balanceOf(address(this));
@@ -165,6 +172,26 @@ contract LottoGame is VRFConsumerBaseV2 {
             block.timestamp,
             block.number,
             msg.sender,
+            _betAmount
+        );
+    }
+
+    /**
+     * @notice Bet function to be called only by the external smart contract handling free bet tokens
+     * @notice This other smart contract holds real USDC and accepts free bet tokens to place real money bets on the users behalf
+     * @notice Necessary to be able to store the original bettor's address
+     * @dev The address of this other contract must be set after deployment using the setter method setFreeBetContractAddress
+     */
+    function freeBet(uint256 _betAmount, address _bettor) external onlyFreeBetContractAddress {
+        if (!s_acceptingBets) {revert LottoGame__BettingIsClosed();}
+        if (_betAmount == 0) {revert LottoGame__InsufficientBetAmount();}
+
+        USDc.transferFrom(msg.sender, address(this), _betAmount);
+        s_unsettledBets.push(Bet(_bettor, _betAmount));
+        emit BetAccepted(
+            block.timestamp,
+            block.number,
+            _bettor,
             _betAmount
         );
     }
@@ -232,12 +259,24 @@ contract LottoGame is VRFConsumerBaseV2 {
         return s_unsettledBets[_index];
     }
 
+    function getAllowance() public view returns (uint256) {
+        return USDc.allowance(msg.sender, address(this));
+    }
+
+    function getFreeBetContractAddress() public view returns (address) {
+        return s_freeBetContractAddress;
+    }
+
     function setRake(uint16 _rake) external onlyOwner {
-        require(_rake <= 10000, "Cannot set rake to > 10000 (100%).");
+        require(_rake <= 10000, "Cannot set rake to >10000 (100%).");
         s_rake = _rake;
     }
 
     function setVaultAddress(address _newVaultAddress) external onlyOwner {
         s_vaultAddress = _newVaultAddress;
+    }
+
+    function setFreeBetContractAddress(address _newFreeBetContractAddress) external onlyOwner {
+        s_freeBetContractAddress = _newFreeBetContractAddress;
     }
 }

@@ -226,6 +226,11 @@ const {
                   const response = await lottoGame.getVaultAddress()
                   assert.equal(response, newVaultAddress)
               })
+              it("should update freeBetContractAddress", async function () {
+                  await lottoGame.setFreeBetContractAddress(deployer.address)
+                  const response = await lottoGame.getFreeBetContractAddress()
+                  assert.equal(response, deployer.address)
+              })
           })
 
           describe("getters", function () {
@@ -261,6 +266,19 @@ const {
                       deployer.address.toString()
                   )
                   assert.equal(bet.betAmount.toString(), betAmount.toString())
+              })
+              it("should return allowance", async function () {
+                  let allowance = await lottoGame.getAllowance()
+                  assert.equal(allowance.toString(), "0")
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  allowance = await lottoGame.getAllowance()
+                  assert.equal(allowance.toString(), betAmount.toString())
+              })
+              it("should return freeBetContract address", async function () {
+                  let freeBetContractAddress =
+                      await lottoGame.getFreeBetContractAddress()
+                  const zeroAddress = ethers.constants.AddressZero
+                  assert(freeBetContractAddress, zeroAddress)
               })
           })
 
