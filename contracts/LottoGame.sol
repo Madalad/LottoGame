@@ -10,7 +10,6 @@ error LottoGame__InsufficientBetAmount();
 error LottoGame__BettingIsClosed();
 error LottoGame__NoBetsToSettle();
 
-
 /** @title A raffle style ERC20 gambling game
  * @author OllieM26
  * @dev This contract implements chainlink oracles to achieve verifiable randomness
@@ -89,7 +88,7 @@ contract LottoGame is VRFConsumerBaseV2 {
     }
 
     modifier onlyFreeBetContractAddress {
-        require(msg.sender == s_freeBetContractAddress, "You cannot call this funcion.");
+        require(msg.sender == s_freeBetContractAddress, "You cannot call this function.");
         _;
     }
 

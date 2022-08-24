@@ -26,7 +26,7 @@ const networkConfig = {
         vrfCoordinatorAddress: "0xd5D517aBE5cF79B7e95eC98dB0f0277788aFF634",
         vrfKeyHash:
             "0x83250c5584ffa93feb6ee082981c5ebe484c865196750b39835ad4f13780435d",
-        usdcAddress: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
+        usdcAddress: "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", // USDC
     },
     43113: {
         name: "fuji", // avalanche testnet
@@ -34,6 +34,8 @@ const networkConfig = {
         vrfKeyHash:
             "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61",
         usdcAddress: "0x727c9B4C6EC121C65709528AD5094B4F0A17f8f4", // MockUSD.sol
+        freeBetTokenAddress: "0x88115EDeC905f73f0002f8704822D89daB406a37", // FreeBetToken.sol
+        freeBetContractAddress: "0xD5BD311101476916Ab5D0B8F20B1469F1A53f11C", // FreeBetContract.sol
     },
 }
 

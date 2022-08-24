@@ -7,7 +7,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     const { deployer } = await getNamedAccounts()
     const chainId = network.config.chainId
 
-    let usdcAddress, freeBetTokenAddress
+    let usdcAddress, freeBetTokenAddress, lottoGameAddress
 
     if (developmentChains.includes(network.name)) {
         const lottoGame = await ethers.getContract("LottoGame")
@@ -17,26 +17,20 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         usdcAddress = mockUSDC.address
         freeBetTokenAddress = freeBetToken.address
     } else {
-        //vrfCoordinatorAddress = networkConfig[chainId]["vrfCoordinatorAddress"]
         usdcAddress = networkConfig[chainId]["usdcAddress"]
         freeBetTokenAddress = networkConfig[chainId]["freeBetTokenAddress"]
-        //subscriptionId = network.config.subscriptionId
     }
 
     const freeBetContract = await deploy("FreeBetContract", {
         from: deployer,
-        args: [lottoGameAddress, freeBetTokenAddress, usdcAddress],
+        args: [
+            "0xff6c568C53F564731B88266022BB46D878592098",
+            freeBetTokenAddress,
+            usdcAddress,
+        ],
         log: true,
         waitConfirmations: network.config.blockConfirmations || 1,
     })
-
-    /*if (developmentChains.includes(network.name)) {
-        // add consumer
-        await VRFCoordinatorV2Mock.addConsumer(
-            subscriptionId,
-            freeBetContract.address
-        )
-    }*/
 
     log("---------------------------------")
 }
