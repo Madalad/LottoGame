@@ -15,6 +15,9 @@ testSigners.js
 approveUSDC.js
 RaffleEther.txt
 gas-report-settle.txt
+gas_reports0
+gas-report-avax-staging.txt
+gas-report-eth-staging.txt
 
 #Hardhat files
 cache

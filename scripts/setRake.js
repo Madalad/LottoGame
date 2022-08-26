@@ -12,8 +12,9 @@ async function main() {
     const LottoGameFactory = await ethers.getContractFactory("LottoGame")
     lottoGame = LottoGameFactory.attach(lottoGameAddress)
 
+    console.log("Contract address:", lottoGameAddress)
     console.log("Rake:", (await lottoGame.getRake()).toString())
-    const txResponse = await lottoGame.setRake(0)
+    const txResponse = await lottoGame.setRake(newRake)
     await txResponse.wait(1)
     console.log("Rake updated.")
     console.log("Rake:", (await lottoGame.getRake()).toString())

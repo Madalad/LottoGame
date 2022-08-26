@@ -90,6 +90,6 @@ module.exports = {
         },
     },
     mocha: {
-        timeout: 120000,
+        timeout: 300000,
     },
 }

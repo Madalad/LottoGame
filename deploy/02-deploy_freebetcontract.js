@@ -17,17 +17,14 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         usdcAddress = mockUSDC.address
         freeBetTokenAddress = freeBetToken.address
     } else {
+        lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
         usdcAddress = networkConfig[chainId]["usdcAddress"]
         freeBetTokenAddress = networkConfig[chainId]["freeBetTokenAddress"]
     }
 
     const freeBetContract = await deploy("FreeBetContract", {
         from: deployer,
-        args: [
-            "0xff6c568C53F564731B88266022BB46D878592098",
-            freeBetTokenAddress,
-            usdcAddress,
-        ],
+        args: [lottoGameAddress, freeBetTokenAddress, usdcAddress],
         log: true,
         waitConfirmations: network.config.blockConfirmations || 1,
     })

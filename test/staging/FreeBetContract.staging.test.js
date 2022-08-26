@@ -17,7 +17,7 @@ require("dotenv").config()
 developmentChains.includes(network.name)
     ? describe.skip
     : describe("FreeBetContract staging tests", function () {
-          let lottoGame, mockUSDC, freeBetContract, freeBetToken
+          let lottoGame, mockUSDC, freeBetContract, freeBetToken, txResponse
           const chainId = network.config.chainId
           const lottoGameAddress = network.config.contractAddress
           const usdcAddress = networkConfig[chainId]["usdcAddress"]
@@ -48,7 +48,7 @@ developmentChains.includes(network.name)
                   freeBetContractAddress
               )
               // make sure rake is 0
-              let txResponse = await lottoGame.setRake(0)
+              txResponse = await lottoGame.setRake("0")
               await txResponse.wait(blockConfirmations)
               // make sure freeBetContract is funded
               await mockUSDC.transfer(freeBetContract.address, betAmount)
