@@ -47,4 +47,9 @@ contract FreeBetContract {
         uint256 balance = mUSDC.balanceOf(address(this));
         mUSDC.transfer(msg.sender, balance);
     }
+
+    function withdrawFreeBetTokens() public onlyOwner {
+        uint256 balance = i_freeBetToken.balanceOf(address(this));
+        i_freeBetToken.transfer(msg.sender, balance);
+    }
 }
