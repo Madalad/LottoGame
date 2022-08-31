@@ -9,11 +9,16 @@ error FreeBetContract__InsufficientBetAmount();
 contract FreeBetContract {
 
     address private immutable i_owner;
-    LottoGame private immutable i_lottoGame;
-    ERC20 public immutable i_freeBetToken;
+    LottoGame private lottoGame;
+    ERC20 public FBT;
     ERC20 public mUSDC;
-    uint256 private s_balance;
     uint256 public MAX_INT = 2 ** 256 - 1;
+
+    /* Amount of $ value that must be staked with free bet token before swapping it for real usd */
+    uint8 private constant betRequirementCoefficient = 2;
+
+    mapping(address => uint256) public betRequirementTotal;
+    mapping(address => uint256) public betRequirementProgress;
 
     constructor(
         address _lottoGameAddress,
@@ -21,8 +26,8 @@ contract FreeBetContract {
         address _mockUSDCAddress
         ) {
         i_owner = msg.sender;
-        i_lottoGame = LottoGame(_lottoGameAddress);
-        i_freeBetToken = ERC20(_freeBetTokenAddress);
+        lottoGame = LottoGame(_lottoGameAddress);
+        FBT = ERC20(_freeBetTokenAddress);
         mUSDC = ERC20(_mockUSDCAddress);
         mUSDC.approve(_lottoGameAddress, MAX_INT);
     }
@@ -32,24 +37,53 @@ contract FreeBetContract {
         _;
     }
 
-    function bet(uint256 _betAmount) public {
+    function bet(uint256 _betAmount) external {
         if (_betAmount == 0) {revert FreeBetContract__InsufficientBetAmount();}
-        i_freeBetToken.transferFrom(msg.sender, address(this), _betAmount);
-        i_lottoGame.freeBet(_betAmount, msg.sender);
+        FBT.transferFrom(msg.sender, address(this), _betAmount);
+        lottoGame.freeBet(_betAmount, msg.sender);
+        betRequirementProgress[msg.sender] += _betAmount;
     }
 
-    function getUSDCBalance() public view returns(uint256) {
-        uint256 balance = mUSDC.balanceOf(address(this));
-        return balance;
+    function settleRound(address _winner, uint256 _amountWon) external {
+        require(msg.sender == address(lottoGame), "Only the LottoGame contract can call this function.");
+        FBT.transfer(_winner, _amountWon);
     }
 
-    function withdraw() public onlyOwner {
+    function distributeFbt(address _recipient, uint256 _amount) external onlyOwner {
+        if (FBT.balanceOf(_recipient) == 0) {
+            betRequirementTotal[_recipient] = betRequirementCoefficient * _amount;
+            betRequirementProgress[_recipient] = 0;
+        }
+        FBT.transfer(_recipient, _amount);
+    }
+
+    /**
+     * @notice user must approve FBT spending by this contract before calling this function
+    */
+    function redeemFbt(uint256 _amount) external {
+        require(FBT.balanceOf(msg.sender) >= _amount, "Insufficient FBT balance.");
+        require(betRequirementProgress[msg.sender] >= betRequirementTotal[msg.sender], "You cannot redeem your FBT yet.");
+        FBT.transferFrom(msg.sender, address(this), _amount);
+        mUSDC.transfer(msg.sender, _amount);
+        betRequirementProgress[msg.sender] = 0;
+        betRequirementTotal[msg.sender] = 0;
+    }
+
+    function withdrawUsdc() external onlyOwner {
         uint256 balance = mUSDC.balanceOf(address(this));
         mUSDC.transfer(msg.sender, balance);
     }
 
-    function withdrawFreeBetTokens() public onlyOwner {
-        uint256 balance = i_freeBetToken.balanceOf(address(this));
-        i_freeBetToken.transfer(msg.sender, balance);
+    function withdrawFbt() external onlyOwner {
+        uint256 balance = FBT.balanceOf(address(this));
+        FBT.transfer(msg.sender, balance);
+    }
+
+    function getUsdcBalance() external view returns(uint256) {
+        return mUSDC.balanceOf(address(this));
+    }
+
+    function getFbtBalance() external view returns(uint256) {
+        return FBT.balanceOf(address(this));
     }
 }

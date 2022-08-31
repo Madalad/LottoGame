@@ -5,6 +5,7 @@ pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./FreeBetContract.sol";
 
 error LottoGame__InsufficientBetAmount();
 error LottoGame__BettingIsClosed();
@@ -33,10 +34,12 @@ contract LottoGame is VRFConsumerBaseV2 {
     address private s_recentWinner;
 
     address private s_freeBetContractAddress;
+    FreeBetContract private freeBetContract;
 
     struct Bet {
         address bettor;
         uint256 betAmount;
+        bool isFreeBet;
     }
     Bet[] private s_unsettledBets;
 
@@ -132,17 +135,27 @@ contract LottoGame is VRFConsumerBaseV2 {
         uint256 totalUSDc;
         address winner;
         uint256 winningBet;
+        bool isFreeBet;
         for (uint i=0; i<countBettors; i++) {
             Bet memory currentBet = unsettledBets[i];
             totalUSDc += currentBet.betAmount;
             if (totalUSDc > randomNumber) {
                 winner = currentBet.bettor;
                 winningBet = currentBet.betAmount;
+                isFreeBet = currentBet.isFreeBet;
                 break;
             }
         }
-        USDc.transfer(winner, potAmount * (10000 - s_rake) / 10000);
-        USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
+        uint256 amountWon = potAmount * (10000 - s_rake) / 10000;
+        if (isFreeBet) {
+            USDc.transfer(s_freeBetContractAddress, amountWon);
+            // call freeBetContract function to settle FBT/USDC
+            freeBetContract.settleRound(winner, amountWon);
+            USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
+        } else {
+            USDc.transfer(winner, amountWon);
+            USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
+        }
         s_recentWinner = winner;
         delete s_unsettledBets;
         emit RoundSettled(
@@ -166,7 +179,7 @@ contract LottoGame is VRFConsumerBaseV2 {
         if (_betAmount == 0) {revert LottoGame__InsufficientBetAmount();}
 
         USDc.transferFrom(msg.sender, address(this), _betAmount);
-        s_unsettledBets.push(Bet(msg.sender, _betAmount));
+        s_unsettledBets.push(Bet(msg.sender, _betAmount, false));
         emit BetAccepted(
             block.timestamp,
             block.number,
@@ -186,7 +199,7 @@ contract LottoGame is VRFConsumerBaseV2 {
         if (_betAmount == 0) {revert LottoGame__InsufficientBetAmount();}
 
         USDc.transferFrom(msg.sender, address(this), _betAmount);
-        s_unsettledBets.push(Bet(_bettor, _betAmount));
+        s_unsettledBets.push(Bet(_bettor, _betAmount, true));
         emit BetAccepted(
             block.timestamp,
             block.number,
@@ -277,5 +290,6 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     function setFreeBetContractAddress(address _newFreeBetContractAddress) external onlyOwner {
         s_freeBetContractAddress = _newFreeBetContractAddress;
+        freeBetContract = FreeBetContract(_newFreeBetContractAddress);
     }
 }
