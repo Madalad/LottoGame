@@ -210,6 +210,7 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     /**
      * @notice Empties unsettledBets array and refunds user's USDc
+     * NEEDS TO BE UPDATED FOR FREE BETS
      */
     function refundBets() public onlyOwner {
         Bet[] memory unsettledBets = s_unsettledBets;
@@ -217,8 +218,15 @@ contract LottoGame is VRFConsumerBaseV2 {
         uint256 totalUSDc;
         for (uint i=0; i<length; i++) {
             Bet memory currentBet = unsettledBets[i];
-            USDc.transfer(currentBet.bettor, currentBet.betAmount);
-            totalUSDc += currentBet.betAmount;
+            address bettor = currentBet.bettor;
+            uint256 betAmount = currentBet.betAmount;
+            if (currentBet.isFreeBet) {
+                USDc.transfer(address(freeBetContract), betAmount);
+                freeBetContract.refundFreeBet(bettor, betAmount);
+            } else {
+                USDc.transfer(bettor, betAmount);
+            }
+            totalUSDc += betAmount;
         }
         
         delete s_unsettledBets;

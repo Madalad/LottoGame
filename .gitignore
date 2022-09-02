@@ -12,6 +12,7 @@ RaffleEther.test.js
 RaffleEther.staging.test.js
 testTime.js
 testSigners.js
+testMaxint.js
 approveUSDC.js
 RaffleEther.txt
 gas-report-settle.txt

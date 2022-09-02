@@ -8,6 +8,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
     const chainId = network.config.chainId
 
     let usdcAddress, freeBetTokenAddress, lottoGameAddress
+    const betRequirementCoefficient = 2
 
     if (developmentChains.includes(network.name)) {
         const lottoGame = await ethers.getContract("LottoGame")
@@ -24,7 +25,12 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
 
     const freeBetContract = await deploy("FreeBetContract", {
         from: deployer,
-        args: [lottoGameAddress, freeBetTokenAddress, usdcAddress],
+        args: [
+            lottoGameAddress,
+            freeBetTokenAddress,
+            usdcAddress,
+            betRequirementCoefficient,
+        ],
         log: true,
         waitConfirmations: network.config.blockConfirmations || 1,
     })

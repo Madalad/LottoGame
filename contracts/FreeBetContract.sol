@@ -12,10 +12,10 @@ contract FreeBetContract {
     LottoGame private lottoGame;
     ERC20 public FBT;
     ERC20 public mUSDC;
-    uint256 public MAX_INT = 2 ** 256 - 1;
+    uint256 public constant MAX_INT = 2 ** 256 - 1;
 
     /* Amount of $ value that must be staked with free bet token before swapping it for real usd */
-    uint8 private constant betRequirementCoefficient = 2;
+    uint8 private s_betRequirementCoefficient;
 
     mapping(address => uint256) public betRequirementTotal;
     mapping(address => uint256) public betRequirementProgress;
@@ -23,13 +23,15 @@ contract FreeBetContract {
     constructor(
         address _lottoGameAddress,
         address _freeBetTokenAddress,
-        address _mockUSDCAddress
+        address _mockUSDCAddress,
+        uint8 _betRequirementCoefficient
         ) {
         i_owner = msg.sender;
         lottoGame = LottoGame(_lottoGameAddress);
         FBT = ERC20(_freeBetTokenAddress);
         mUSDC = ERC20(_mockUSDCAddress);
         mUSDC.approve(_lottoGameAddress, MAX_INT);
+        s_betRequirementCoefficient = _betRequirementCoefficient;
     }
     
     modifier onlyOwner {
@@ -51,7 +53,7 @@ contract FreeBetContract {
 
     function distributeFbt(address _recipient, uint256 _amount) external onlyOwner {
         if (FBT.balanceOf(_recipient) == 0) {
-            betRequirementTotal[_recipient] = betRequirementCoefficient * _amount;
+            betRequirementTotal[_recipient] = s_betRequirementCoefficient * _amount;
             betRequirementProgress[_recipient] = 0;
         }
         FBT.transfer(_recipient, _amount);
@@ -69,6 +71,12 @@ contract FreeBetContract {
         betRequirementTotal[msg.sender] = 0;
     }
 
+    function refundFreeBet(address _bettor, uint256 _amount) external {
+        require(msg.sender == address(lottoGame), "Only the lottogame contract can call this function.");
+        FBT.transfer(_bettor, _amount);
+        betRequirementProgress[_bettor] -= _amount;
+    }
+
     function withdrawUsdc() external onlyOwner {
         uint256 balance = mUSDC.balanceOf(address(this));
         mUSDC.transfer(msg.sender, balance);
@@ -79,11 +87,19 @@ contract FreeBetContract {
         FBT.transfer(msg.sender, balance);
     }
 
+    function setBetRequirementCoefficient(uint8 _newBetRequirementCoefficient) external onlyOwner {
+        s_betRequirementCoefficient = _newBetRequirementCoefficient;
+    }
+
     function getUsdcBalance() external view returns(uint256) {
         return mUSDC.balanceOf(address(this));
     }
 
     function getFbtBalance() external view returns(uint256) {
         return FBT.balanceOf(address(this));
+    }
+
+    function getBetRequirementCoefficient() external view returns(uint256) {
+        return s_betRequirementCoefficient;
     }
 }
