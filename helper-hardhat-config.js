@@ -14,10 +14,10 @@ const networkConfig = {
         vrfCoordinatorAddress: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
         vrfKeyHash:
             "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
-        lottoGameAddress: "0x85B83712ACE92E5175e383dFd7285438773733fB", // LottoGame.sol
+        lottoGameAddress: "0x9c369dA742Bfc49edAd13A72a7F2Dc09dFD92032", // LottoGame.sol
         usdcAddress: "0x7fA74B4b920f24386b7f25128C87909944fA7aF0", // MockUSD.sol
         freeBetTokenAddress: "0xeF0CF82dc4d2D4386897f227eB94ca8732fF1038", // FreeBetToken.sol
-        freeBetContractAddress: "0x7A27D061A6E5760710782A97b4d74541A1358Ca2", // FreeBetContract.sol
+        freeBetContractAddress: "0x67724C631eb2C4A5F60328Df75a030631C0255e7", // FreeBetContract.sol
     },
     31337: {
         name: "hardhat",
@@ -36,10 +36,10 @@ const networkConfig = {
         vrfCoordinatorAddress: "0x2eD832Ba664535e5886b75D64C46EB9a228C2610",
         vrfKeyHash:
             "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61",
-        lottoGameAddress: "0xE896d6F2DdcAa8883A687A22d6F7871ed80c6Dc9", // LottoGame.sol
+        lottoGameAddress: "0x2E4b58D7296d04a73e8a672DbFF0DD169FACC9c9", // LottoGame.sol
         usdcAddress: "0x727c9B4C6EC121C65709528AD5094B4F0A17f8f4", // MockUSD.sol
         freeBetTokenAddress: "0x88115EDeC905f73f0002f8704822D89daB406a37", // FreeBetToken.sol
-        freeBetContractAddress: "0x31E1c3cc87bc83fAd4aB98df29055b7A0606F816", // FreeBetContract.sol
+        freeBetContractAddress: "0x1c91B5D0b3Da788ba70ec36F418769CF3169B42c", // FreeBetContract.sol
     },
 }
 

@@ -24,6 +24,10 @@ async function main() {
     )
     console.log("Accepting bets:", await lottoGame.getAcceptingBets())
     console.log("Rake:", (await lottoGame.getRake()).toString())
+    console.log(
+        "FreeBetContract address:",
+        (await lottoGame.getFreeBetContractAddress()).toString()
+    )
 }
 
 main()

@@ -49,7 +49,7 @@ module.exports = {
             url: FUJI_RPC_URL,
             accounts: [PRIVATE_KEY, PRIVATE_KEY2, PRIVATE_KEY3],
             chainId: 43113,
-            blockConfirmations: 2,
+            blockConfirmations: 1,
             subscriptionId: FUJI_SUBSCRIPTION_ID,
             contractAddress: FUJI_CONTRACT_ADDRESS,
         },

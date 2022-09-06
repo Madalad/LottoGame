@@ -1,9 +1,6 @@
 const { assert } = require("chai")
 const { ethers } = require("hardhat")
 const {
-    isCallTrace,
-} = require("hardhat/internal/hardhat-network/stack-traces/message-trace")
-const {
     developmentChains,
     networkConfig,
 } = require("../../helper-hardhat-config")
@@ -47,11 +44,19 @@ developmentChains.includes(network.name)
               freeBetContract = FreeBetContractFactory.attach(
                   freeBetContractAddress
               )
+
               // make sure rake is 0
               txResponse = await lottoGame.setRake("0")
               await txResponse.wait(blockConfirmations)
+              console.log("")
+              console.log("Rake set to 0.")
               // make sure freeBetContract is funded
-              await mockUSDC.transfer(freeBetContract.address, betAmount)
+              txResponse = await mockUSDC.transfer(
+                  freeBetContract.address,
+                  betAmount
+              )
+              await txResponse.wait(blockConfirmations)
+              console.log("USDC sent to FreeBetContract.")
 
               console.log("")
               console.log("LottoGame contract address:", lottoGame.address)
@@ -67,7 +72,27 @@ developmentChains.includes(network.name)
               console.log("")
           })
           it("should accept a free bet and settle properly", async function () {
+              console.log("Block confirmations:", blockConfirmations)
+              console.log("")
+
               const { deployer, bettor } = await ethers.getNamedSigners()
+              // empty deployers FBT balance (needs 0 balance for bet requirement values to update upon distribution)
+              const fundAmount = await freeBetToken.balanceOf(deployer.address)
+              txResponse = await freeBetToken.transfer(
+                  freeBetContract.address,
+                  fundAmount
+              )
+              await txResponse.wait(blockConfirmations)
+              console.log("FBT sent to FreeBetContract.")
+              // distribute FBT
+              txResponse = await freeBetContract.distributeFbt(
+                  deployer.address,
+                  betAmount
+              )
+              await txResponse.wait(blockConfirmations)
+              console.log("FBT distributed to deployer.")
+              console.log("")
+
               // deployer will bet with FreeBetToken
               // bettor will bet with MockUSDC
               // ensure each account has sufficient funds before running staging test
@@ -106,15 +131,31 @@ developmentChains.includes(network.name)
               )
               console.log("")
 
+              const betRequirementProgressStart =
+                  await freeBetContract.betRequirementProgress(deployer.address)
+              const betRequirementTotalStart =
+                  await freeBetContract.betRequirementTotal(deployer.address)
+              console.log(
+                  "Bet requirement progress:",
+                  betRequirementProgressStart.toString()
+              )
+              console.log(
+                  "Bet requirement total:   ",
+                  betRequirementTotalStart.toString()
+              )
+              console.log("")
+
               console.log("Bet amount =", betAmount.toString(), "($5)")
-              console.log("Betting...")
               // place deployer bet (free bet)
               await lottoGame.setFreeBetContractAddress(freeBetContract.address)
+              console.log("Approving...")
               txResponse = await freeBetToken.approve(
                   freeBetContract.address,
                   betAmount
               )
               await txResponse.wait(blockConfirmations)
+              console.log("Approved FBT")
+              console.log("Betting...")
               txResponse = await freeBetContract.bet(betAmount)
               await txResponse.wait(blockConfirmations)
               console.log("Deployer bet placed (free bet).")
@@ -232,16 +273,17 @@ developmentChains.includes(network.name)
               console.log("")
 
               // assert
+              // (we do not know which account will win)
               assert.equal(contractEndBalance.toString(), "0")
               assert.equal(
-                  deployerEndBalanceFBT.toString(),
-                  deployerStartBalanceFBT.sub(betAmount)
+                  deployerEndBalanceUSD.toString(),
+                  deployerStartBalanceUSD.toString()
               )
               assert(
-                  deployerEndBalanceUSD.toString() ==
-                      deployerStartBalanceUSD.toString() ||
-                      deployerEndBalanceUSD.toString() ==
-                          deployerStartBalanceUSD.add(betAmount).toString()
+                  deployerEndBalanceFBT.toString() ==
+                      deployerStartBalanceFBT.sub(betAmount).toString() ||
+                      deployerEndBalanceFBT.toString() ==
+                          deployerStartBalanceFBT.add(betAmount).toString()
               )
               assert(
                   bettorEndBalance.toString() ==
@@ -249,6 +291,30 @@ developmentChains.includes(network.name)
                       bettorEndBalance.toString() ==
                           bettorStartBalance.add(betAmount).toString()
               )
+              const betRequirementProgressEnd =
+                  await freeBetContract.betRequirementProgress(deployer.address)
+              const betRequirementTotalEnd =
+                  await freeBetContract.betRequirementTotal(deployer.address)
+              assert.equal(betRequirementProgressStart.toString(), "0")
+              assert.equal(
+                  betRequirementProgressEnd.toString(),
+                  betAmount.toString()
+              )
+              assert.equal(
+                  betRequirementTotalEnd.toString(),
+                  betRequirementTotalStart.toString()
+              )
+              assert.equal(
+                  betRequirementTotalEnd.toString(),
+                  (await freeBetContract.getBetRequirementCoefficient())
+                      .mul(betAmount)
+                      .toString()
+              )
+
+              // withdraw funds from freeBetContract
+              txResponse = await freeBetContract.withdrawFbt()
+              await txResponse.wait(blockConfirmations)
+
               console.log("Done!")
               console.log("--------------------")
           })
