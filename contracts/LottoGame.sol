@@ -126,6 +126,7 @@ contract LottoGame is VRFConsumerBaseV2 {
      * @notice Picks a winner using the random number and resets state variables
      *
      * @param _randomWord the random number received from the VRF coordinator
+     * @dev internal keyword is omitted for convenience during development
      */
     function settleRound(uint256 _randomWord) /* internal */ public {
         Bet[] memory unsettledBets = s_unsettledBets;

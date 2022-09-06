@@ -20,20 +20,17 @@ async function main() {
     const MockUSDCFactory = await ethers.getContractFactory("MockUSDC")
     mockUSDC = MockUSDCFactory.attach(mockUSDCAddress)
 
-    console.log(
-        "FreeBetContract contract address:",
-        freeBetContractAddress.address
-    )
-    let balance = await mockUSDC.balanceOf(freeBetContractAddress)
-    console.log("Contract balance:", balance.toString())
+    console.log("FreeBetContract contract address:", freeBetContract.address)
+    let usdcBalance = await mockUSDC.balanceOf(freeBetContractAddress)
+    console.log("Contract balance:", usdcBalance.toString(), "USD")
 
     console.log("Withdrawing...")
-    const txResponse = await freeBetContract.withdraw()
+    const txResponse = await freeBetContract.withdrawUsdc()
     await txResponse.wait(blockConfirmations)
     console.log("Withdrawal complete.")
 
-    balance = await mockUSDC.balanceOf(freeBetContractAddress)
-    console.log("Contract balance:", balance.toString())
+    usdcBalance = await mockUSDC.balanceOf(freeBetContractAddress)
+    console.log("Contract balance:", usdcBalance.toString())
 }
 
 main()
