@@ -7,14 +7,11 @@ typechain-types
 notes.txt
 README.md
 deployments
-01-deploy_raffleether.js
-RaffleEther.test.js
-RaffleEther.staging.test.js
+RaffleEther
 testTime.js
 testSigners.js
 testMaxint.js
 approveUSDC.js
-RaffleEther.txt
 gas-report-settle.txt
 gas_reports0
 gas-report-avax-staging.txt

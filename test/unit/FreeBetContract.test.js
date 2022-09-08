@@ -445,7 +445,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       freeBetContract.connect(bettor)
                   await expect(
                       freeBetContractConnectedContract.withdrawUsdc()
-                  ).to.be.revertedWith("Only the owner can call this function.")
+                  ).to.be.revertedWith("Ownable: caller is not the owner")
               })
           })
           describe("withdraw fbt", function () {
@@ -476,7 +476,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       await freeBetContract.connect(bettor)
                   await expect(
                       freeBetContractConnectedContract.withdrawFbt()
-                  ).to.be.revertedWith("Only the owner can call this function.")
+                  ).to.be.revertedWith("Ownable: caller is not the owner")
               })
           })
           describe("setters", function () {

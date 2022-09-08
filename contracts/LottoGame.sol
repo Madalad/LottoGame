@@ -5,6 +5,7 @@ pragma solidity ^0.8.7;
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./FreeBetContract.sol";
 
 error LottoGame__InsufficientBetAmount();
@@ -15,9 +16,9 @@ error LottoGame__NoBetsToSettle();
  * @author OllieM26
  * @dev This contract implements chainlink oracles to achieve verifiable randomness
  */
-contract LottoGame is VRFConsumerBaseV2 {
+contract LottoGame is VRFConsumerBaseV2, Ownable {
 
-    ERC20 public USDc;
+    ERC20 private USDc;
 
     VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
     address private immutable i_coordinatorAddress;
@@ -28,7 +29,7 @@ contract LottoGame is VRFConsumerBaseV2 {
     uint32 private constant NUM_WORDS = 1;
     address private s_vaultAddress;
 
-    address private immutable i_owner;
+    address private s_owner;
     bool private s_acceptingBets;
     uint16 private s_rake;
     address private s_recentWinner;
@@ -77,17 +78,12 @@ contract LottoGame is VRFConsumerBaseV2 {
             USDc = ERC20(_USDCAddress);
             i_vrfCoordinator = VRFCoordinatorV2Interface(_coordinatorAddress);
             i_coordinatorAddress = _coordinatorAddress;
-            i_owner = msg.sender;
+            s_owner = msg.sender;
             i_subscriptionId = _subscriptionId;
             i_keyHash = _keyHash;
             s_vaultAddress = _vaultAddress;
             s_acceptingBets = true;
             s_rake = 0;
-    }
-    
-    modifier onlyOwner {
-        require(msg.sender == i_owner, "Only the owner can call this function.");
-        _;
     }
 
     modifier onlyFreeBetContractAddress {
@@ -97,7 +93,7 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     /**
      * @notice Requests a random number from the VRF coordinator
-     * @dev Will revert if subscription is not set and funded.
+     * @dev Will revert if chainlink VRF subscription is not set up and funded.
      */
     function requestRandomWords() external onlyOwner {
         if (s_unsettledBets.length == 0) {revert LottoGame__NoBetsToSettle();}
@@ -114,6 +110,7 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     /**
      * @notice This function is called once the random number is acquired
+     * @param randomWords Array containing the random numbers (length one in this case)
      */
     function fulfillRandomWords(
         uint256, /* requestId */
@@ -124,9 +121,8 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     /**
      * @notice Picks a winner using the random number and resets state variables
-     *
-     * @param _randomWord the random number received from the VRF coordinator
      * @dev internal keyword is omitted for convenience during development
+     * @param _randomWord the random number received from the VRF coordinator
      */
     function settleRound(uint256 _randomWord) /* internal */ public {
         Bet[] memory unsettledBets = s_unsettledBets;
@@ -150,7 +146,6 @@ contract LottoGame is VRFConsumerBaseV2 {
         uint256 amountWon = potAmount * (10000 - s_rake) / 10000;
         if (isFreeBet) {
             USDc.transfer(s_freeBetContractAddress, amountWon);
-            // call freeBetContract function to settle FBT/USDC
             freeBetContract.settleRound(winner, amountWon);
             USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
         } else {
@@ -169,11 +164,11 @@ contract LottoGame is VRFConsumerBaseV2 {
         );
         s_acceptingBets = true;
     }
-    
 
     /**
      * @notice Requests a random number from the VRF coordinator
-     * @notice User must approve this contract address to spend their USDc
+     * @dev User must approve this contract address to spend their USDc
+     * @param _betAmount Amount of USDC to bet
      */
     function bet(uint256 _betAmount) external {
         if (!s_acceptingBets) {revert LottoGame__BettingIsClosed();}
@@ -190,10 +185,14 @@ contract LottoGame is VRFConsumerBaseV2 {
     }
 
     /**
-     * @notice Bet function to be called only by the external smart contract handling free bet tokens
-     * @notice This other smart contract holds real USDC and accepts free bet tokens to place real money bets on the users behalf
-     * @notice Necessary to be able to store the original bettor's address
-     * @dev The address of this other contract must be set after deployment using the setter method setFreeBetContractAddress
+     * @notice Bet function to be called only by the external smart contract handling free bet 
+     *         tokens (FreeBetContract.sol)
+     * @dev This other smart contract holds real USDC and accepts free bet tokens to place real
+     *      money bets on the users behalf
+     *      The address of this other contract must be set after deployment using the setter
+     *      method setFreeBetContractAddress(), otherwise it will revert
+     * @param _betAmount Amount to bet
+     * @param _bettor User who placed the free bet
      */
     function freeBet(uint256 _betAmount, address _bettor) external onlyFreeBetContractAddress {
         if (!s_acceptingBets) {revert LottoGame__BettingIsClosed();}
@@ -211,7 +210,8 @@ contract LottoGame is VRFConsumerBaseV2 {
 
     /**
      * @notice Empties unsettledBets array and refunds user's USDc
-     * NEEDS TO BE UPDATED FOR FREE BETS
+     * @dev For free bets, it refunds FreeBetContract with the USDC then makes a call
+     *      to refundFreeBet() for it to refund the user their FBT
      */
     function refundBets() public onlyOwner {
         Bet[] memory unsettledBets = s_unsettledBets;

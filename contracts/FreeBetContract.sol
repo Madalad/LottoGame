@@ -3,16 +3,16 @@
 pragma solidity ^0.8.7;
 
 import "./LottoGame.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 error FreeBetContract__InsufficientBetAmount();
 
-contract FreeBetContract {
+contract FreeBetContract is Ownable {
 
-    address private immutable i_owner;
+    address private s_owner;
     LottoGame private lottoGame;
-    ERC20 public FBT;
-    ERC20 public mUSDC;
-    uint256 public constant MAX_INT = 2 ** 256 - 1;
+    ERC20 private FBT;
+    ERC20 private mUSDC;
 
     /* Amount of $ value that must be staked with free bet token before swapping it for real usd */
     uint8 private s_betRequirementCoefficient;
@@ -20,25 +20,39 @@ contract FreeBetContract {
     mapping(address => uint256) public betRequirementTotal;
     mapping(address => uint256) public betRequirementProgress;
 
+    event FbtDistributed(
+        address indexed recipient,
+        uint256 amount
+    );
+    event FbtRedeemed(
+        address indexed redeemer,
+        uint256 amount
+    );
+
     constructor(
         address _lottoGameAddress,
         address _freeBetTokenAddress,
-        address _mockUSDCAddress,
+        address _USDCAddress,
         uint8 _betRequirementCoefficient
         ) {
-        i_owner = msg.sender;
+        s_owner = msg.sender;
         lottoGame = LottoGame(_lottoGameAddress);
         FBT = ERC20(_freeBetTokenAddress);
-        mUSDC = ERC20(_mockUSDCAddress);
+        mUSDC = ERC20(_USDCAddress);
+        uint256 MAX_INT = 2 ** 256 - 1;
         mUSDC.approve(_lottoGameAddress, MAX_INT);
         s_betRequirementCoefficient = _betRequirementCoefficient;
     }
-    
-    modifier onlyOwner {
-        require(msg.sender == i_owner, "Only the owner can call this function.");
-        _;
-    }
 
+    /**
+     * @notice Allows a user to place a free bet using FBT
+     * @dev Contract accepts the FBT and transfers from its USDC balance to the main 
+     *      contract (LottoGame.sol)
+     *      User must approve FBT spending by this contract before calling this function
+     *      This contract must be funded with sufficient USDC before free bets can be
+     *      accepted
+     * @param _betAmount Amount to be bet (FBT)
+     */
     function bet(uint256 _betAmount) external {
         if (_betAmount == 0) {revert FreeBetContract__InsufficientBetAmount();}
         FBT.transferFrom(msg.sender, address(this), _betAmount);
@@ -46,22 +60,42 @@ contract FreeBetContract {
         betRequirementProgress[msg.sender] += _betAmount;
     }
 
+    /**
+     * @notice Called by the settleRound() function in the LottoGame contract when a free 
+     *         bet is the winner
+     * @dev This contract accepts the USDC winnings and pays out the winner with FBT
+     * @param _winner Address of the winning user
+     * @param _amountWon Amount of the pot won
+     */
     function settleRound(address _winner, uint256 _amountWon) external {
         require(msg.sender == address(lottoGame), "Only the LottoGame contract can call this function.");
         FBT.transfer(_winner, _amountWon);
     }
 
+    /**
+     * @notice Contract owner gives FBT to specified recipient, and updates bet requirement
+     *         state variables
+     * @dev To only be called by the contract owner, this function should be the only means
+     *      of distributing FBT, so that bet playthrough requirements are properly tracked
+     * @param _recipient Address of user to receive FBT
+     * @param _amount Amount of FBT to send to the user
+     */
     function distributeFbt(address _recipient, uint256 _amount) external onlyOwner {
         if (FBT.balanceOf(_recipient) == 0) {
             betRequirementTotal[_recipient] = s_betRequirementCoefficient * _amount;
             betRequirementProgress[_recipient] = 0;
         }
         FBT.transfer(_recipient, _amount);
+        emit FbtDistributed(_recipient, _amount);
     }
 
     /**
-     * @notice user must approve FBT spending by this contract before calling this function
-    */
+     * @notice Allows a user to trade their FBT for USDC 1 to 1 if they have satisfied the bet
+     *         playthrough requirement
+     *         User must approve FBT spending by this contract before calling this function
+     * @dev Accepts FBT, sends out USDC, and resets values in bet requirement mappings
+     * @param _amount Amount of FBT to be redeemed
+     */
     function redeemFbt(uint256 _amount) external {
         require(FBT.balanceOf(msg.sender) >= _amount, "Insufficient FBT balance.");
         require(betRequirementProgress[msg.sender] >= betRequirementTotal[msg.sender], "You cannot redeem your FBT yet.");
@@ -69,8 +103,17 @@ contract FreeBetContract {
         mUSDC.transfer(msg.sender, _amount);
         betRequirementProgress[msg.sender] = 0;
         betRequirementTotal[msg.sender] = 0;
+        emit FbtRedeemed(msg.sender, _amount);
     }
 
+    /**
+     * @notice To be called only during the refundBets() function in the main contract
+     *         (LottoGame.sol)
+     * @dev Refunds a single free bet
+     *      Bet requirement progress is adjusted accordingly
+     * @param _bettor Address whose bet is being refunded
+     * @param _amount Size of the bet being refunded
+     */
     function refundFreeBet(address _bettor, uint256 _amount) external {
         require(msg.sender == address(lottoGame), "Only the lottogame contract can call this function.");
         FBT.transfer(_bettor, _amount);
@@ -78,13 +121,11 @@ contract FreeBetContract {
     }
 
     function withdrawUsdc() external onlyOwner {
-        uint256 balance = mUSDC.balanceOf(address(this));
-        mUSDC.transfer(msg.sender, balance);
+        mUSDC.transfer(msg.sender, mUSDC.balanceOf(address(this)));
     }
 
     function withdrawFbt() external onlyOwner {
-        uint256 balance = FBT.balanceOf(address(this));
-        FBT.transfer(msg.sender, balance);
+        FBT.transfer(msg.sender, FBT.balanceOf(address(this)));
     }
 
     function setBetRequirementCoefficient(uint8 _newBetRequirementCoefficient) external onlyOwner {
