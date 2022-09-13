@@ -9,9 +9,9 @@ const {
     ? describe.skip
     : describe("LottoGame", async function () {
           let deployer
-          let lottoGame
+          let lottoGame, freeBetContract
           let vrfCoordinatorV2Mock
-          let mockUSDC
+          let mockUSDC, freeBetToken
           const chainId = network.config.chainId
           let betAmount
           beforeEach(async function () {
@@ -28,6 +28,28 @@ const {
                   deployer.address
               )
               mockUSDC = await ethers.getContract("MockUSDC", deployer.address)
+              freeBetContract = await ethers.getContract(
+                  "FreeBetContract",
+                  deployer.address
+              )
+              await lottoGame.setFreeBetContractAddress(freeBetContract.address)
+              freeBetToken = await ethers.getContract(
+                  "FreeBetToken",
+                  deployer.address
+              )
+              const deployerFbtBalance = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              await freeBetToken.transfer(
+                  freeBetContract.address,
+                  deployerFbtBalance
+              )
+              const maxUint256 = ethers.BigNumber.from(
+                  "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+              )
+              await mockUSDC.approve(freeBetContract.address, maxUint256)
+              await freeBetContract.distributeFbt(deployer.address, betAmount)
+              await freeBetToken.approve(freeBetContract.address, maxUint256)
           })
 
           describe("constructor", function () {
@@ -124,9 +146,8 @@ const {
                   }
               })
               it("should revert bets of 0 USDC", async function () {
-                  betAmount = 0
                   await expect(
-                      lottoGame.bet(betAmount)
+                      lottoGame.bet("0")
                   ).to.be.revertedWithCustomError(
                       lottoGame,
                       "LottoGame__InsufficientBetAmount"
@@ -136,12 +157,81 @@ const {
                   await mockUSDC.approve(lottoGame.address, betAmount)
                   await lottoGame.bet(betAmount)
                   await lottoGame.requestRandomWords()
-                  expect(
+                  await expect(
                       lottoGame.bet(betAmount)
                   ).to.be.revertedWithCustomError(
                       lottoGame,
                       "LottoGame__BettingIsClosed"
                   )
+              })
+          })
+
+          describe("freeBet", function () {
+              it("should revert if called by anyone except FreeBetContract", async function () {
+                  await expect(
+                      lottoGame.freeBet(betAmount, deployer.address)
+                  ).to.be.revertedWith("You cannot call this function.")
+              })
+              it("should revert if betting is closed", async function () {
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  await lottoGame.bet(betAmount)
+                  await lottoGame.requestRandomWords()
+                  await expect(
+                      freeBetContract.bet(betAmount)
+                  ).to.be.revertedWithCustomError(
+                      lottoGame,
+                      "LottoGame__BettingIsClosed"
+                  )
+              })
+              it("should revert if bet amount = 0", async function () {
+                  await expect(
+                      freeBetContract.bet("0")
+                  ).to.be.revertedWithCustomError(
+                      lottoGame,
+                      "LottoGame__InsufficientBetAmount"
+                  )
+              })
+              it("should update unsettledBets array", async function () {
+                  const accounts = await ethers.getSigners()
+                  const countBettors = 2
+                  let bettor
+                  let freeBetContractConnectedContract
+                  for (i = 0; i < countBettors; i++) {
+                      bettor = accounts[i]
+                      // distribute FBT
+                      await freeBetContract.distributeFbt(
+                          bettor.address,
+                          betAmount
+                      )
+                      // approve
+                      mockUSDCConnectedContract = await mockUSDC.connect(bettor)
+                      await mockUSDCConnectedContract.approve(
+                          freeBetContract.address,
+                          betAmount
+                      )
+                      freeBetTokenConnectedContract =
+                          await freeBetToken.connect(bettor)
+                      await freeBetTokenConnectedContract.approve(
+                          freeBetContract.address,
+                          betAmount
+                      )
+                      // transfer
+                      //await mockUSDC.transfer(bettor.address, betAmount)
+                      // bet
+                      freeBetContractConnectedContract =
+                          await freeBetContract.connect(bettor)
+                      await freeBetContractConnectedContract.bet(betAmount)
+                  }
+
+                  let currentBet
+                  for (i = 0; i < countBettors; i++) {
+                      currentBet = await lottoGame.getUnsettledBet(i)
+                      assert.equal(
+                          currentBet["betAmount"].toString(),
+                          betAmount.toString()
+                      )
+                      assert.equal(currentBet["bettor"], accounts[i].address)
+                  }
               })
           })
 
@@ -217,6 +307,32 @@ const {
                       betAmount.toString()
                   )
               })
+              it("should refund a free bet properly", async function () {
+                  // place free bet
+                  await freeBetToken.approve(freeBetContract.address, betAmount)
+                  await freeBetContract.bet(betAmount)
+                  // refund
+                  const deployerFbtBalanceBefore = await freeBetToken.balanceOf(
+                      deployer.address
+                  )
+                  const freeBetContractUsdBalanceBefore =
+                      await mockUSDC.balanceOf(freeBetContract.address)
+                  await lottoGame.refundBets()
+                  // assert
+                  const deployerFbtBalanceAfter = await freeBetToken.balanceOf(
+                      deployer.address
+                  )
+                  const freeBetContractUsdBalanceAfter =
+                      await mockUSDC.balanceOf(freeBetContract.address)
+                  assert.equal(
+                      deployerFbtBalanceAfter.toString(),
+                      deployerFbtBalanceBefore.add(betAmount).toString()
+                  )
+                  assert.equal(
+                      freeBetContractUsdBalanceAfter.toString(),
+                      freeBetContractUsdBalanceBefore.add(betAmount).toString()
+                  )
+              })
           })
 
           describe("setters", function () {
@@ -230,6 +346,17 @@ const {
                   await lottoGame.setFreeBetContractAddress(deployer.address)
                   const response = await lottoGame.getFreeBetContractAddress()
                   assert.equal(response, deployer.address)
+              })
+              it("should update rake", async function () {
+                  const newRake = 100
+                  await lottoGame.setRake(newRake)
+                  const response = await lottoGame.getRake()
+                  assert.equal(newRake.toString(), response.toString())
+              })
+              it("should revert if setting rake above 100%", async function () {
+                  await expect(lottoGame.setRake(10001)).to.be.revertedWith(
+                      "Cannot set rake to >10000 (100%)."
+                  )
               })
           })
 
@@ -465,6 +592,51 @@ const {
                       lottoGame,
                       "LottoGame__NoBetsToSettle"
                   )
+              })
+              it("should settle if a free bet wins", async function () {
+                  // place free bet
+                  await freeBetContract.bet(betAmount)
+                  // settle
+                  const deployerFbtBalanceBefore = await freeBetToken.balanceOf(
+                      deployer.address
+                  )
+                  const freeBetContractUsdBalanceBefore =
+                      await mockUSDC.balanceOf(freeBetContract.address)
+                  await new Promise(async (resolve, reject) => {
+                      lottoGame.once("RoundSettled", async () => {
+                          try {
+                              const deployerFbtBalanceAfter =
+                                  await freeBetToken.balanceOf(deployer.address)
+                              const freeBetContractUsdBalanceAfter =
+                                  await mockUSDC.balanceOf(
+                                      freeBetContract.address
+                                  )
+                              assert.equal(
+                                  deployerFbtBalanceAfter.toString(),
+                                  deployerFbtBalanceBefore
+                                      .add(betAmount)
+                                      .toString()
+                              )
+                              assert.equal(
+                                  freeBetContractUsdBalanceAfter.toString(),
+                                  freeBetContractUsdBalanceBefore
+                                      .add(betAmount)
+                                      .toString()
+                              )
+                          } catch (e) {
+                              reject(e)
+                          }
+                          resolve()
+                      })
+                      txResponse = await lottoGame.requestRandomWords()
+                      txReceipt = await txResponse.wait(1)
+                      txResponse =
+                          await vrfCoordinatorV2Mock.fulfillRandomWords(
+                              txReceipt.events[1].args.requestId,
+                              lottoGame.address
+                          )
+                      await txResponse.wait(1)
+                  })
               })
           })
       })

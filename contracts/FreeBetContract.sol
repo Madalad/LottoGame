@@ -31,7 +31,7 @@ contract FreeBetContract is Ownable {
     address private s_owner;
     LottoGame private lottoGame;
     ERC20 private FBT;
-    ERC20 private USDC;
+    ERC20 private USDc;
 
     /* Amount of $ value that must be staked with free bet token before swapping it for real usd */
     uint8 private s_betRequirementCoefficient;
@@ -57,9 +57,9 @@ contract FreeBetContract is Ownable {
         s_owner = msg.sender;
         lottoGame = LottoGame(_lottoGameAddress);
         FBT = ERC20(_freeBetTokenAddress);
-        USDC = ERC20(_USDCAddress);
+        USDc = ERC20(_USDCAddress);
         uint256 MAX_INT = 2 ** 256 - 1;
-        USDC.approve(_lottoGameAddress, MAX_INT);
+        USDc.approve(_lottoGameAddress, MAX_INT);
         s_betRequirementCoefficient = _betRequirementCoefficient;
     }
 
@@ -73,7 +73,6 @@ contract FreeBetContract is Ownable {
      * @param _betAmount Amount to be bet (FBT)
      */
     function bet(uint256 _betAmount) external {
-        if (_betAmount == 0) {revert FreeBetContract__InsufficientBetAmount();}
         FBT.transferFrom(msg.sender, address(this), _betAmount);
         lottoGame.freeBet(_betAmount, msg.sender);
         betRequirementProgress[msg.sender] += _betAmount;
@@ -101,14 +100,16 @@ contract FreeBetContract is Ownable {
      * @param _amount Amount of FBT to send to the user
      */
     function distributeFbt(address _recipient, uint256 _amount) external onlyOwner {
-        require(USDC.balanceOf(msg.sender) >= _amount, "Insufficient USDC balance.");
+        require(USDc.balanceOf(msg.sender) >= _amount, "Insufficient USDC balance.");
         require(FBT.balanceOf(address(this)) >= _amount, "Contract has insufficient FBT balance.");
         if (FBT.balanceOf(_recipient) == 0) {
             betRequirementTotal[_recipient] = s_betRequirementCoefficient * _amount;
             betRequirementProgress[_recipient] = 0;
+        } else {
+            betRequirementTotal[_recipient] += s_betRequirementCoefficient * _amount;
         }
         FBT.transfer(_recipient, _amount);
-        USDC.transferFrom(msg.sender, address(this), _amount);
+        USDc.transferFrom(msg.sender, address(this), _amount);
         emit FbtDistributed(_recipient, _amount);
     }
 
@@ -123,7 +124,7 @@ contract FreeBetContract is Ownable {
         require(FBT.balanceOf(msg.sender) >= _amount, "Insufficient FBT balance.");
         require(betRequirementProgress[msg.sender] >= betRequirementTotal[msg.sender], "You cannot redeem your FBT yet.");
         FBT.transferFrom(msg.sender, address(this), _amount);
-        USDC.transfer(msg.sender, _amount);
+        USDc.transfer(msg.sender, _amount);
         betRequirementProgress[msg.sender] = 0;
         betRequirementTotal[msg.sender] = 0;
         emit FbtRedeemed(msg.sender, _amount);
@@ -144,7 +145,7 @@ contract FreeBetContract is Ownable {
     }
 
     function withdrawUsdc() external onlyOwner {
-        USDC.transfer(msg.sender, USDC.balanceOf(address(this)));
+        USDc.transfer(msg.sender, USDc.balanceOf(address(this)));
     }
 
     function withdrawFbt() external onlyOwner {
@@ -156,7 +157,7 @@ contract FreeBetContract is Ownable {
     }
 
     function getUsdcBalance() external view returns(uint256) {
-        return USDC.balanceOf(address(this));
+        return USDc.balanceOf(address(this));
     }
 
     function getFbtBalance() external view returns(uint256) {

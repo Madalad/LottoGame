@@ -115,8 +115,8 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   await expect(
                       freeBetContract.bet(0)
                   ).to.be.revertedWithCustomError(
-                      freeBetContract,
-                      "FreeBetContract__InsufficientBetAmount"
+                      lottoGame,
+                      "LottoGame__InsufficientBetAmount"
                   )
               })
               it("should settle properly if free bet wins", async function () {
@@ -212,7 +212,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   )
                   assert.equal(betRequirementProgress.toString(), "0")
               })
-              it("should not update bet requirements if FBT balance != 0", async function () {
+              it("should not update bet requirement total if FBT balance != 0", async function () {
                   // distribute
                   await freeBetContract.distributeFbt(
                       bettor.address,
@@ -243,13 +243,14 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       )
                   const betRequirementTotalAfter =
                       await freeBetContract.betRequirementTotal(bettor.address)
+                  // assert
                   assert.equal(
                       betRequirementProgressAfter.toString(),
                       betRequirementProgressBefore.toString()
                   )
                   assert.equal(
                       betRequirementTotalAfter.toString(),
-                      betRequirementTotalBefore.toString()
+                      betRequirementTotalBefore.add(betAmount * 2).toString()
                   )
                   const betRequirementCoefficient =
                       await freeBetContract.getBetRequirementCoefficient()
@@ -258,6 +259,38 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       (betRequirementCoefficient * betAmount).toString()
                   )
                   assert.notEqual(betRequirementProgressAfter.toString(), "0")
+              })
+              it("should revert if owner has insufficient usd balance", async function () {
+                  // empty deployer USD balance
+                  const deployerUsdBalance = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  await mockUSDC.transfer(
+                      freeBetContract.address,
+                      deployerUsdBalance
+                  )
+                  // attempt to distribute
+                  await expect(
+                      freeBetContract.distributeFbt(deployer.address, betAmount)
+                  ).to.be.revertedWith("Insufficient USDC balance.")
+              })
+              it("should revert if contract has insufficient FBT balance", async function () {
+                  // empty contract FBT balance
+                  await freeBetContract.withdrawFbt()
+                  // attempt to distribute
+                  await expect(
+                      freeBetContract.distributeFbt(deployer.address, betAmount)
+                  ).to.be.revertedWith("Contract has insufficient FBT balance.")
+              })
+              it("should only let the owner call distributeFbt()", async function () {
+                  const freeBetContractConnectedContract =
+                      await freeBetContract.connect(bettor)
+                  await expect(
+                      freeBetContractConnectedContract.distributeFbt(
+                          bettor.address,
+                          betAmount
+                      )
+                  ).to.be.revertedWith("Ownable: caller is not the owner")
               })
           })
           describe("redeem", function () {

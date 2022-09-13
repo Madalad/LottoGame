@@ -147,11 +147,10 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         if (isFreeBet) {
             USDc.transfer(s_freeBetContractAddress, amountWon);
             freeBetContract.settleRound(winner, amountWon);
-            USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
         } else {
             USDc.transfer(winner, amountWon);
-            USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
         }
+        USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
         s_recentWinner = winner;
         delete s_unsettledBets;
         emit RoundSettled(
