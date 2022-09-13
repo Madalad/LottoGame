@@ -15,7 +15,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   deployer.address
               )
           })
-          it("should mint $100 to deployer", async function () {
+          it("should mint $100 to deployer initially", async function () {
               const deployerBalance = await freeBetToken.balanceOf(
                   deployer.address
               )
@@ -27,5 +27,31 @@ const { developmentChains } = require("../../helper-hardhat-config")
           it("has 6 decimals", async function () {
               const decimals = await freeBetToken.decimals()
               assert.equal(decimals.toString(), "6")
+          })
+          it("should mint new tokens", async function () {
+              const balanceBefore = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              await freeBetToken.mint(deployer.address, 10 ** 6)
+              const balanceAfter = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              assert.equal(
+                  balanceAfter.toString(),
+                  balanceBefore.add(10 ** 6).toString()
+              )
+          })
+          it("should burn tokens", async function () {
+              const balanceBefore = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              await freeBetToken.burn(deployer.address, 10 ** 6)
+              const balanceAfter = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              assert.equal(
+                  balanceAfter.toString(),
+                  balanceBefore.sub(10 ** 6).toString()
+              )
           })
       })

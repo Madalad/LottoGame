@@ -23,7 +23,7 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             contract: "FreeBetToken",
             from: deployer,
             log: true,
-            args: ["FreeBetToken", "FBT"],
+            args: ["FreeBetToken", "FBT", 100 * 10 ** 6],
         })
         // deploy mock coordinator
         await deploy("VRFCoordinatorV2Mock", {
