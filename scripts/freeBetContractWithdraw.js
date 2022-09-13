@@ -8,8 +8,8 @@ const { networkConfig } = require("../helper-hardhat-config")
 async function main() {
     const chainId = network.config.chainId
     const blockConfirmations = network.config.blockConfirmations || 1
-    const freeBetContractAddress =
-        networkConfig[chainId]["freeBetContractAddress"]
+    const freeBetContractAddress = "0x1c91b5d0b3da788ba70ec36f418769cf3169b42c"
+    // networkConfig[chainId]["freeBetContractAddress"]
     const freeBetTokenAddress = networkConfig[chainId]["freeBetTokenAddress"]
     const mockUSDCAddress = networkConfig[network.config.chainId]["usdcAddress"]
 
@@ -38,6 +38,9 @@ async function main() {
             console.log("USDC withdrawn.")
         }
         if (fbtBalance != 0) {
+            console.log("FBT address", freeBetToken.address)
+            const bal = await freeBetContract.getFbtBalance()
+            console.log("bal =", bal.toString())
             txResponse = await freeBetContract.withdrawFbt()
             await txResponse.wait(blockConfirmations)
             console.log("FBT withdrawn.")

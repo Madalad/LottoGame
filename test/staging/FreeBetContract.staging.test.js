@@ -13,7 +13,7 @@ require("dotenv").config()
  */
 developmentChains.includes(network.name)
     ? describe.skip
-    : describe("FreeBetContract staging tests", function () {
+    : describe("FreeBetContract staging tests", async function () {
           let lottoGame, mockUSDC, freeBetContract, freeBetToken, txResponse
           const chainId = network.config.chainId
           const lottoGameAddress = network.config.contractAddress
@@ -26,6 +26,7 @@ developmentChains.includes(network.name)
           const blockConfirmations = network.config.blockConfirmations
 
           beforeEach(async function () {
+              const { deployer } = await ethers.getNamedSigners()
               const LottoGameFactory = await ethers.getContractFactory(
                   "LottoGame"
               )
@@ -51,12 +52,21 @@ developmentChains.includes(network.name)
               console.log("")
               console.log("Rake set to 0.")
               // make sure freeBetContract is funded
-              txResponse = await mockUSDC.transfer(
+              const deployerFbtBalance = await freeBetToken.balanceOf(
+                  deployer.address
+              )
+              txResponse = await freeBetToken.transfer(
+                  freeBetContract.address,
+                  deployerFbtBalance
+              )
+              await txResponse.wait(blockConfirmations)
+              console.log("FBT sent to FreeBetContract.")
+              // approve FreeBetContract to spend deployers USD (for distributeFbt())
+              txResponse = await mockUSDC.approve(
                   freeBetContract.address,
                   betAmount
               )
               await txResponse.wait(blockConfirmations)
-              console.log("USDC sent to FreeBetContract.")
 
               console.log("")
               console.log("LottoGame contract address:", lottoGame.address)
@@ -66,7 +76,7 @@ developmentChains.includes(network.name)
                   freeBetContract.address
               )
               console.log(
-                  "FreeBetToken contract address: ",
+                  "FreeBetToken (FBT) contract address: ",
                   freeBetToken.address
               )
               console.log("")
@@ -76,15 +86,27 @@ developmentChains.includes(network.name)
               console.log("")
 
               const { deployer, bettor } = await ethers.getNamedSigners()
+
               // empty deployers FBT balance (needs 0 balance for bet requirement values to update upon distribution)
-              const fundAmount = await freeBetToken.balanceOf(deployer.address)
+              /*const fundAmount = await freeBetToken.balanceOf(deployer.address)
               txResponse = await freeBetToken.transfer(
                   freeBetContract.address,
                   fundAmount
               )
               await txResponse.wait(blockConfirmations)
-              console.log("FBT sent to FreeBetContract.")
+              console.log("FBT sent to FreeBetContract.")*/
+
               // distribute FBT
+              console.log("Distributing FBT...")
+              console.log(
+                  (await mockUSDC.balanceOf(deployer.address)).toString()
+              )
+              console.log(
+                  (
+                      await freeBetToken.balanceOf(freeBetContract.address)
+                  ).toString()
+              )
+              console.log(betAmount.toString())
               txResponse = await freeBetContract.distributeFbt(
                   deployer.address,
                   betAmount
@@ -313,6 +335,8 @@ developmentChains.includes(network.name)
 
               // withdraw funds from freeBetContract
               txResponse = await freeBetContract.withdrawFbt()
+              await txResponse.wait(blockConfirmations)
+              txResponse = await freeBetContract.withdrawUsdc()
               await txResponse.wait(blockConfirmations)
 
               console.log("Done!")

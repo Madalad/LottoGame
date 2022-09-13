@@ -38,8 +38,8 @@ const networkConfig = {
             "0x354d2f95da55398f44b7cff77da56283d9c6c829a4bdf1bbcaf2ad6a4d081f61",
         lottoGameAddress: "0x2E4b58D7296d04a73e8a672DbFF0DD169FACC9c9", // LottoGame.sol
         usdcAddress: "0x727c9B4C6EC121C65709528AD5094B4F0A17f8f4", // MockUSD.sol
-        freeBetTokenAddress: "0x88115EDeC905f73f0002f8704822D89daB406a37", // FreeBetToken.sol
-        freeBetContractAddress: "0x1c91B5D0b3Da788ba70ec36F418769CF3169B42c", // FreeBetContract.sol
+        freeBetTokenAddress: "0x8715Ae1046Bdb8806326302Fe5d4915fD87E9bc1", // FreeBetToken.sol
+        freeBetContractAddress: "0x318a62c6250452B362D82aca7bd8900a1B9C5c30", // FreeBetContract.sol
     },
 }
 

@@ -14,7 +14,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
               betAmount
           const maxInt = ethers.BigNumber.from(
               "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-          )
+          ) // 2 ** 256 - 1
           beforeEach(async function () {
               const accounts = await ethers.getSigners()
               deployer = accounts[0]
@@ -36,12 +36,19 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   deployer.address
               )
               await lottoGame.setFreeBetContractAddress(freeBetContract.address)
-              // fund free bet contract with usd and fbt
-              mockUSDC.transfer(freeBetContract.address, 50 * 10 ** 6)
-              freeBetToken.transfer(freeBetContract.address, 50 * 10 ** 6)
+              // fund free bet contract with fbt
+              //mockUSDC.transfer(freeBetContract.address, 50 * 10 ** 6)
+              freeBetToken.transfer(freeBetContract.address, 100 * 10 ** 6)
+              // approve USDC spending for distributeFbt()
+              await mockUSDC.approve(freeBetContract.address, maxInt)
           })
           describe("bet", function () {
               it("should accept a free bet and emit the event", async function () {
+                  // distribute
+                  await freeBetContract.distributeFbt(
+                      deployer.address,
+                      betAmount
+                  )
                   const freeBetContractStartBalance =
                       await freeBetContract.getUsdcBalance()
                   const deployerStartBalance = await freeBetToken.balanceOf(
@@ -113,6 +120,11 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   )
               })
               it("should settle properly if free bet wins", async function () {
+                  // distribute
+                  await freeBetContract.distributeFbt(
+                      deployer.address,
+                      betAmount
+                  )
                   // approve
                   await freeBetToken.approve(freeBetContract.address, betAmount)
                   const mockUSDCConnectedContract = mockUSDC.connect(bettor)
@@ -430,6 +442,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
           })
           describe("withdraw usdc", function () {
               it("should withdraw the usdc", async function () {
+                  await mockUSDC.transfer(freeBetContract.address, betAmount)
                   const contractStartBalance = await mockUSDC.balanceOf(
                       freeBetContract.address
                   )
@@ -495,12 +508,13 @@ const { developmentChains } = require("../../helper-hardhat-config")
           })
           describe("getters", function () {
               it("should get the usdc balance", async function () {
+                  await mockUSDC.transfer(freeBetContract.address, betAmount)
                   const balance = await freeBetContract.getUsdcBalance()
-                  assert.equal(balance.toString(), "50000000")
+                  assert.equal(balance.toString(), betAmount.toString())
               })
               it("should get the fbt balance", async function () {
                   const balance = await freeBetContract.getFbtBalance()
-                  assert.equal(balance.toString(), "50000000")
+                  assert.equal(balance.toString(), "100000000")
               })
               it("should get the bet requirement coefficient", async function () {
                   const betRequirementCoefficient =

@@ -7,12 +7,31 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 error FreeBetContract__InsufficientBetAmount();
 
+/** @title A contract to facilitate "free bets" for LottoGame.sol
+ * @author OllieM26
+ * @dev    This contract relies on a custom ERC20 token (FBT) with uncapped supply
+ *         To allow users to bet on the main contract (LottoGame.sol) with FBT, this contract accepts
+ *         FBT, sends USDC to the main contract and receives USDC back should that bet end up winning,
+ *         paying out the bettor with FBT
+ *         This contract must maintain a healthy FBT balance, enough to pay out any potential large
+ *         wins
+ *         FBT distribution to users must be done throught the distributeFbt() function in this
+ *         contract, so that each users bet volume can be tracked for FBT => USDC redemption purposes
+ *         Calling distributeFbt() to send a user FBT can only be called by the contract owner, and
+ *         requires an equal amount of USDC to be sent from the owner to this contract.
+ *         This is to guarantee that
+ *         - there is enough USDC for each FBT bet to be placed (100FBT bet => 100USDC sent from this 
+ *           contract to the main contract)
+ *         - there is enough USDC for a user to redeem their FBT, no matter how much
+ *           they may win (a large win would result in the entire USDC amount being sent to this contract
+ *           from the main contract)
+ */
 contract FreeBetContract is Ownable {
 
     address private s_owner;
     LottoGame private lottoGame;
     ERC20 private FBT;
-    ERC20 private mUSDC;
+    ERC20 private USDC;
 
     /* Amount of $ value that must be staked with free bet token before swapping it for real usd */
     uint8 private s_betRequirementCoefficient;
@@ -38,9 +57,9 @@ contract FreeBetContract is Ownable {
         s_owner = msg.sender;
         lottoGame = LottoGame(_lottoGameAddress);
         FBT = ERC20(_freeBetTokenAddress);
-        mUSDC = ERC20(_USDCAddress);
+        USDC = ERC20(_USDCAddress);
         uint256 MAX_INT = 2 ** 256 - 1;
-        mUSDC.approve(_lottoGameAddress, MAX_INT);
+        USDC.approve(_lottoGameAddress, MAX_INT);
         s_betRequirementCoefficient = _betRequirementCoefficient;
     }
 
@@ -73,19 +92,23 @@ contract FreeBetContract is Ownable {
     }
 
     /**
-     * @notice Contract owner gives FBT to specified recipient, and updates bet requirement
-     *         state variables
+     * @notice Contract owner gives FBT to specified recipient, and bet requirement state 
+     *         variables are updated if necessary
      * @dev To only be called by the contract owner, this function should be the only means
      *      of distributing FBT, so that bet playthrough requirements are properly tracked
+     *      Contract owner must first approve this contract to spend their USDC
      * @param _recipient Address of user to receive FBT
      * @param _amount Amount of FBT to send to the user
      */
     function distributeFbt(address _recipient, uint256 _amount) external onlyOwner {
+        require(USDC.balanceOf(msg.sender) >= _amount, "Insufficient USDC balance.");
+        require(FBT.balanceOf(address(this)) >= _amount, "Contract has insufficient FBT balance.");
         if (FBT.balanceOf(_recipient) == 0) {
             betRequirementTotal[_recipient] = s_betRequirementCoefficient * _amount;
             betRequirementProgress[_recipient] = 0;
         }
         FBT.transfer(_recipient, _amount);
+        USDC.transferFrom(msg.sender, address(this), _amount);
         emit FbtDistributed(_recipient, _amount);
     }
 
@@ -100,7 +123,7 @@ contract FreeBetContract is Ownable {
         require(FBT.balanceOf(msg.sender) >= _amount, "Insufficient FBT balance.");
         require(betRequirementProgress[msg.sender] >= betRequirementTotal[msg.sender], "You cannot redeem your FBT yet.");
         FBT.transferFrom(msg.sender, address(this), _amount);
-        mUSDC.transfer(msg.sender, _amount);
+        USDC.transfer(msg.sender, _amount);
         betRequirementProgress[msg.sender] = 0;
         betRequirementTotal[msg.sender] = 0;
         emit FbtRedeemed(msg.sender, _amount);
@@ -121,7 +144,7 @@ contract FreeBetContract is Ownable {
     }
 
     function withdrawUsdc() external onlyOwner {
-        mUSDC.transfer(msg.sender, mUSDC.balanceOf(address(this)));
+        USDC.transfer(msg.sender, USDC.balanceOf(address(this)));
     }
 
     function withdrawFbt() external onlyOwner {
@@ -133,7 +156,7 @@ contract FreeBetContract is Ownable {
     }
 
     function getUsdcBalance() external view returns(uint256) {
-        return mUSDC.balanceOf(address(this));
+        return USDC.balanceOf(address(this));
     }
 
     function getFbtBalance() external view returns(uint256) {
