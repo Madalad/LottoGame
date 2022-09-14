@@ -6,6 +6,7 @@ const { networkConfig } = require("../helper-hardhat-config")
  * Contract address is pulled from config files
  */
 async function main() {
+    const { deployer } = await ethers.getNamedSigners()
     const chainId = network.config.chainId
     const blockConfirmations = network.config.blockConfirmations || 1
     const freeBetContractAddress =
@@ -28,27 +29,16 @@ async function main() {
     console.log("Contract balance USDC:", usdcBalance.toString())
     console.log("Contract balance FBT: ", fbtBalance.toString())
 
-    if (usdcBalance == 0 && fbtBalance == 0) {
-        console.log("No withdrawal required.")
-    } else {
-        console.log("Withdrawing...")
-        let txResponse
-        if (usdcBalance != 0) {
-            txResponse = await freeBetContract.withdrawUsdc()
-            await txResponse.wait(blockConfirmations)
-            console.log("USDC withdrawn.")
-        }
-        if (fbtBalance != 0) {
-            txResponse = await freeBetContract.withdrawFbt()
-            await txResponse.wait(blockConfirmations)
-            console.log("FBT withdrawn.")
-        }
-        console.log("Withdrawals complete.")
-        usdcBalance = await mockUSDC.balanceOf(freeBetContractAddress)
-        fbtBalance = await freeBetToken.balanceOf(freeBetContractAddress)
-        console.log("Contract balance USDC:", usdcBalance.toString())
-        console.log("Contract balance FBT :", fbtBalance.toString())
-    }
+    const fundAmount = await freeBetToken.balanceOf(deployer.address)
+    console.log(`Sending ${fundAmount} FBT to FreeBetContract...`)
+    const txResponse = await freeBetToken.transfer(
+        freeBetContract.address,
+        fundAmount
+    )
+    await txResponse.wait(blockConfirmations)
+    console.log("FBT sent.")
+    fbtBalance = await freeBetToken.balanceOf(freeBetContractAddress)
+    console.log("Contract balance FBT: ", fbtBalance.toString())
 }
 
 main()

@@ -146,8 +146,8 @@ const { developmentChains } = require("../../helper-hardhat-config")
                       bettor.address
                   )
                   // settle (free bet wins)
-                  const placeholderRandomWord = 1
-                  await lottoGame.settleRound(placeholderRandomWord)
+                  const placeholderRandomWords = [1, 1]
+                  await lottoGame.settleRound(placeholderRandomWords)
                   // assert
                   const contractEndBalance = await lottoGame.getBalance()
                   const deployerEndBalance = await freeBetToken.balanceOf(
@@ -326,7 +326,7 @@ const { developmentChains } = require("../../helper-hardhat-config")
                   )
                   for (i = 0; i < countBets; i++) {
                       await freeBetContractConnectedContract.bet(betAmount)
-                      await lottoGame.settleRound(1)
+                      await lottoGame.settleRound([1, 1])
                   }
                   // redeem
                   const bettorFbtBalanceBefore = await freeBetToken.balanceOf(

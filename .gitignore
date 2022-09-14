@@ -16,6 +16,8 @@ gas-report-settle.txt
 gas_reports0
 gas-report-avax-staging.txt
 gas-report-eth-staging.txt
+gas-report-avax-nojackpot.txt
+gas-report-eth-nojackpot.txt
 
 #Hardhat files
 cache

@@ -36,6 +36,9 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         subscriptionId = network.config.subscriptionId
     }
 
+    const rake = 0
+    const jackpotContribution = 0
+
     const lottoGame = await deploy("LottoGame", {
         from: deployer,
         args: [
@@ -44,6 +47,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
             vrfCoordinatorAddress,
             usdcAddress,
             vaultAddress,
+            rake,
+            jackpotContribution,
         ],
         log: true,
         waitConfirmations: network.config.blockConfirmations || 1,

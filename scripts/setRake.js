@@ -8,7 +8,8 @@ async function main() {
     /* Desired rake */
     const newRake = 0
 
-    const lottoGameAddress = network.config.contractAddress
+    const chainId = network.config.chainId
+    const lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
     const LottoGameFactory = await ethers.getContractFactory("LottoGame")
     lottoGame = LottoGameFactory.attach(lottoGameAddress)
 

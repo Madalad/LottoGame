@@ -61,6 +61,10 @@ const {
                   const acceptingBets = await lottoGame.getAcceptingBets()
                   const vaultAddress = await lottoGame.getVaultAddress()
                   const rake = await lottoGame.getRake()
+                  const potAmount = await lottoGame.getPotAmount()
+                  const jackpotAmount = await lottoGame.getJackpotAmount()
+                  const jackpotContribution =
+                      await lottoGame.getJackpotContribution()
                   assert.equal(coordinatorAddress, vrfCoordinatorV2Mock.address)
                   assert.equal(
                       subscriptionId.toString(),
@@ -71,6 +75,9 @@ const {
                   const accounts = await ethers.getSigners()
                   assert.equal(vaultAddress, accounts[2].address)
                   assert.equal(rake.toString(), "0")
+                  assert.equal(potAmount.toString(), "0")
+                  assert.equal(jackpotAmount.toString(), "0")
+                  assert.equal(jackpotContribution.toString(), "0")
               })
           })
 
@@ -353,9 +360,24 @@ const {
                   const response = await lottoGame.getRake()
                   assert.equal(newRake.toString(), response.toString())
               })
-              it("should revert if setting rake above 100%", async function () {
+              it("should revert if setting rake too high", async function () {
                   await expect(lottoGame.setRake(10001)).to.be.revertedWith(
-                      "Cannot set rake to >10000 (100%)."
+                      "Rake + jackpot contribution exceeds 100%."
+                  )
+              })
+              it("should set jackpot contribution", async function () {
+                  const newJackpotContribution = 100
+                  await lottoGame.setJackpotContribution(newJackpotContribution)
+                  assert.equal(
+                      (await lottoGame.getJackpotContribution()).toString(),
+                      newJackpotContribution.toString()
+                  )
+              })
+              it("should revert if setting jackpot contribution too high", async function () {
+                  await expect(
+                      lottoGame.setJackpotContribution(10001)
+                  ).to.be.revertedWith(
+                      "Rake + jackpot contribution exceeds 100%."
                   )
               })
           })
@@ -407,10 +429,28 @@ const {
                   const zeroAddress = ethers.constants.AddressZero
                   assert(freeBetContractAddress, zeroAddress)
               })
+              it("should get pot amount", async function () {
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  await lottoGame.bet(betAmount)
+                  const potAmount = await lottoGame.getPotAmount()
+                  assert.equal(potAmount.toString(), betAmount.toString())
+              })
+              it("should get jackpot amount", async function () {
+                  assert.equal(
+                      (await lottoGame.getJackpotAmount()).toString(),
+                      "0"
+                  )
+              })
+              it("should get jackpot contribution", async function () {
+                  assert.equal(
+                      (await lottoGame.getJackpotContribution()).toString(),
+                      "0"
+                  )
+              })
           })
 
           describe("settle round", function () {
-              it("should settle bets", async function () {
+              it("should settle bets and reset state variables", async function () {
                   // place bets
                   for (i = 10; i < 15; i++) {
                       await mockUSDC.transfer(accounts[i].address, betAmount)
@@ -431,6 +471,7 @@ const {
                       lottoGame.once("RoundSettled", async () => {
                           try {
                               // assert
+                              const potAmount = await lottoGame.getPotAmount()
                               const acceptingBets =
                                   await lottoGame.getAcceptingBets()
                               const countBettors =
@@ -442,6 +483,7 @@ const {
                               )
                               const contractEndBalance =
                                   await mockUSDC.balanceOf(lottoGame.address)
+                              assert.equal(potAmount.toString(), "0")
                               assert.equal(acceptingBets, true)
                               assert.equal(countBettors.toString(), "0")
                               assert.equal(recentWinner, winner)
@@ -548,7 +590,6 @@ const {
                       lottoGame.once(
                           "RoundSettled",
                           async (
-                              blockTimestamp,
                               blockNumber,
                               potAmount,
                               winner,
@@ -637,6 +678,75 @@ const {
                           )
                       await txResponse.wait(1)
                   })
+              })
+          })
+
+          describe("jackpot", function () {
+              it("should add usd to the jackpot", async function () {
+                  const jackpotAmountBefore = await lottoGame.getJackpotAmount()
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  await lottoGame.addToJackpot(betAmount)
+                  const jackpotAmountAfter = await lottoGame.getJackpotAmount()
+                  assert.equal(
+                      jackpotAmountAfter.toString(),
+                      jackpotAmountBefore.add(betAmount).toString()
+                  )
+              })
+              it("should take usd from bets to add to the jackpot", async function () {
+                  await lottoGame.setJackpotContribution(100)
+                  await mockUSDC.approve(lottoGame.address, betAmount)
+                  await lottoGame.bet(betAmount)
+                  await lottoGame.settleRound([1, 1])
+                  const jackpotAmount = await lottoGame.getJackpotAmount()
+                  assert.equal(
+                      jackpotAmount.toString(),
+                      (betAmount * 0.01).toString()
+                  )
+              })
+              it("should payout the jackpot if won", async function () {
+                  const jackpotAmountToAdd = 10 * 10 ** 6 // $10
+                  await mockUSDC.approve(
+                      lottoGame.address,
+                      betAmount + jackpotAmountToAdd
+                  )
+                  await lottoGame.addToJackpot(jackpotAmountToAdd)
+                  await lottoGame.bet(betAmount)
+                  const deployerBalanceBefore = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  await lottoGame.settleRound([1, 0]) // jackpot will be won
+                  const deployerBalanceAfter = await mockUSDC.balanceOf(
+                      deployer.address
+                  )
+                  const jackpotAmount = await lottoGame.getJackpotAmount()
+                  assert.equal(
+                      deployerBalanceAfter.toString(),
+                      deployerBalanceBefore
+                          .add(betAmount + jackpotAmountToAdd)
+                          .toString()
+                  )
+                  assert.equal(jackpotAmount.toString(), "0")
+              })
+              it("should emit event upon jackpot win", async function () {
+                  const jackpotAmountToAdd = 10 * 10 ** 6 // $10
+                  await mockUSDC.approve(
+                      lottoGame.address,
+                      betAmount + jackpotAmountToAdd
+                  )
+                  await lottoGame.addToJackpot(jackpotAmountToAdd)
+                  await lottoGame.bet(betAmount)
+                  const fetchedJackpotSize = await lottoGame.getJackpotAmount()
+                  const txResponse = await lottoGame.settleRound([1, 0]) // jackpot will be won
+                  const txReceipt = await txResponse.wait()
+                  const args = txReceipt.events[3].args
+                  const winner = args.winner.toString()
+                  const jackpotSize = args.jackpotSize.toString()
+                  const recentWinner = await lottoGame.getRecentWinner()
+                  assert.equal(winner, recentWinner)
+                  assert.equal(
+                      jackpotSize.toString(),
+                      fetchedJackpotSize.toString()
+                  )
               })
           })
       })

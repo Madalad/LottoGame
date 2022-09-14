@@ -16,7 +16,7 @@ developmentChains.includes(network.name)
     : describe("FreeBetContract staging tests", async function () {
           let lottoGame, mockUSDC, freeBetContract, freeBetToken, txResponse
           const chainId = network.config.chainId
-          const lottoGameAddress = network.config.contractAddress
+          const lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
           const usdcAddress = networkConfig[chainId]["usdcAddress"]
           const freeBetContractAddress =
               networkConfig[chainId]["freeBetContractAddress"]
@@ -87,26 +87,8 @@ developmentChains.includes(network.name)
 
               const { deployer, bettor } = await ethers.getNamedSigners()
 
-              // empty deployers FBT balance (needs 0 balance for bet requirement values to update upon distribution)
-              /*const fundAmount = await freeBetToken.balanceOf(deployer.address)
-              txResponse = await freeBetToken.transfer(
-                  freeBetContract.address,
-                  fundAmount
-              )
-              await txResponse.wait(blockConfirmations)
-              console.log("FBT sent to FreeBetContract.")*/
-
               // distribute FBT
               console.log("Distributing FBT...")
-              console.log(
-                  (await mockUSDC.balanceOf(deployer.address)).toString()
-              )
-              console.log(
-                  (
-                      await freeBetToken.balanceOf(freeBetContract.address)
-                  ).toString()
-              )
-              console.log(betAmount.toString())
               txResponse = await freeBetContract.distributeFbt(
                   deployer.address,
                   betAmount
@@ -132,7 +114,7 @@ developmentChains.includes(network.name)
                   freeBetContract.address
               )
               console.log(
-                  "Deployer start balance (fUSD): ",
+                  "Deployer start balance (FBT):  ",
                   deployerStartBalanceFBT.toString()
               )
               console.log(
@@ -169,7 +151,10 @@ developmentChains.includes(network.name)
 
               console.log("Bet amount =", betAmount.toString(), "($5)")
               // place deployer bet (free bet)
-              await lottoGame.setFreeBetContractAddress(freeBetContract.address)
+              txResponse = await lottoGame.setFreeBetContractAddress(
+                  freeBetContract.address
+              )
+              await txResponse.wait(blockConfirmations)
               console.log("Approving...")
               txResponse = await freeBetToken.approve(
                   freeBetContract.address,
@@ -212,7 +197,7 @@ developmentChains.includes(network.name)
               )
               console.log("count bettors:", countBettorsDuring.toString())
               console.log(
-                  "deployer balance (fUSD): ",
+                  "deployer balance (FBT):  ",
                   deployerBalanceDuringFBT.toString()
               )
               console.log(
@@ -273,7 +258,7 @@ developmentChains.includes(network.name)
                   freeBetContract.address
               )
               console.log(
-                  "Deployer end balance (fUSD): ",
+                  "Deployer end balance (FBT):  ",
                   deployerEndBalanceFBT.toString()
               )
               console.log(

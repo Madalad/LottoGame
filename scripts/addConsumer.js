@@ -8,7 +8,8 @@ const { vrfCoordinatorFujiABI } = require("../constants.js")
  * Network is specified in the terminal
  */
 async function main() {
-    const lottoGameAddress = network.config.contractAddress
+    const chainId = network.config.chainId
+    const lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
     const vrfCoordinatorAddress =
         networkConfig[network.config.chainId]["vrfCoordinatorAddress"]
 

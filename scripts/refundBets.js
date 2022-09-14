@@ -6,8 +6,9 @@ const { networkConfig } = require("../helper-hardhat-config")
  * Contract address is pulled from config files
  */
 async function main() {
-    const lottoGameAddress = network.config.contractAddress
-    const mockUSDCAddress = networkConfig[network.config.chainId]["usdcAddress"]
+    const chainId = network.config.chainId
+    const lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
+    const mockUSDCAddress = networkConfig[chainId]["usdcAddress"]
 
     const LottoGameFactory = await ethers.getContractFactory("LottoGame")
     lottoGame = LottoGameFactory.attach(lottoGameAddress)

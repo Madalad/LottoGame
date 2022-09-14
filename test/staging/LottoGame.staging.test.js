@@ -9,14 +9,14 @@ require("dotenv").config()
 /**
  * Contract must be pre-deployed
  * Subscription must be set up and funded
- * Contract must be added as a consumer (scripts/addConsumer.js)
+ * Contract must be added as a consumer (see scripts/addConsumer.js)
  */
 developmentChains.includes(network.name)
     ? describe.skip
     : describe("LottoGame staging tests", function () {
           const chainId = network.config.chainId
           let lottoGame, mockUSDC
-          const lottoGameAddress = network.config.contractAddress
+          const lottoGameAddress = networkConfig[chainId]["lottoGameAddress"]
           const usdcAddress = networkConfig[chainId]["usdcAddress"]
           const betAmount = 5 * 10 ** 6 // $5
           const blockConfirmations = network.config.blockConfirmations

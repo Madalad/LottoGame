@@ -25,14 +25,17 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
     bytes32 private immutable i_keyHash;
     uint64 private immutable i_subscriptionId;
     uint16 private constant REQUEST_CONFIRMATIONS = 3;
-    uint32 private constant CALLBACK_GAS_LIMIT = 500000;
-    uint32 private constant NUM_WORDS = 1;
+    uint32 private constant CALLBACK_GAS_LIMIT = 800000;
+    uint32 private constant NUM_WORDS = 2;
     address private s_vaultAddress;
 
     address private s_owner;
     bool private s_acceptingBets;
     uint16 private s_rake;
     address private s_recentWinner;
+    uint256 private s_potAmount;
+    uint256 private s_jackpotAmount;
+    uint16 private s_jackpotContribution;
 
     address private s_freeBetContractAddress;
     FreeBetContract private freeBetContract;
@@ -45,7 +48,6 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
     Bet[] private s_unsettledBets;
 
     event BetAccepted(
-        uint256 blockTimestamp,
         uint256 indexed blockNumber,
         address indexed bettor,
         uint256 indexed betAmount
@@ -54,7 +56,6 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         uint256 indexed requestId
     );
     event RoundSettled(
-        uint256 blockTimestamp,
         uint256 indexed blockNumber,
         uint256 indexed potAmount,
         address indexed winner,
@@ -62,10 +63,14 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         uint256 countParticipants
     );
     event BetsRefunded(
-        uint256 blockTimestamp,
         uint256 indexed blockNumber,
         uint256 indexed countParticipants,
         uint256 indexed totalRefunded
+    );
+    event JackpotWon(
+        uint256 indexed blockNumber,
+        address indexed winner,
+        uint256 jackpotSize
     );
 
     constructor(
@@ -73,7 +78,9 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         bytes32 _keyHash,
         address _coordinatorAddress,
         address _USDCAddress,
-        address _vaultAddress
+        address _vaultAddress,
+        uint16 _rake,
+        uint16 _jackpotContribution
         ) VRFConsumerBaseV2(_coordinatorAddress) {
             USDc = ERC20(_USDCAddress);
             i_vrfCoordinator = VRFCoordinatorV2Interface(_coordinatorAddress);
@@ -83,12 +90,10 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
             i_keyHash = _keyHash;
             s_vaultAddress = _vaultAddress;
             s_acceptingBets = true;
-            s_rake = 0;
-    }
-
-    modifier onlyFreeBetContractAddress {
-        require(msg.sender == s_freeBetContractAddress, "You cannot call this function.");
-        _;
+            s_rake = _rake;
+            s_jackpotContribution = _jackpotContribution;
+            s_potAmount = 0;
+            s_jackpotAmount = 0;
     }
 
     /**
@@ -116,23 +121,24 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         uint256, /* requestId */
         uint256[] memory randomWords
     ) internal override {
-        settleRound(randomWords[0]);
+        settleRound(randomWords);
     }
 
     /**
      * @notice Picks a winner using the random number and resets state variables
      * @dev internal keyword is omitted for convenience during development
-     * @param _randomWord the random number received from the VRF coordinator
+     * @param _randomWords the random number received from the VRF coordinator
      */
-    function settleRound(uint256 _randomWord) /* internal */ public {
+    function settleRound(uint256[] memory _randomWords) /* internal */ public {
         Bet[] memory unsettledBets = s_unsettledBets;
         uint256 countBettors = unsettledBets.length;
-        uint256 potAmount = USDc.balanceOf(address(this));
-        uint256 randomNumber = _randomWord % potAmount;
+        uint256 potAmount = s_potAmount;
+        uint256 randomNumber = _randomWords[0] % potAmount;
         uint256 totalUSDc;
         address winner;
         uint256 winningBet;
         bool isFreeBet;
+        // pick winner
         for (uint i=0; i<countBettors; i++) {
             Bet memory currentBet = unsettledBets[i];
             totalUSDc += currentBet.betAmount;
@@ -143,25 +149,48 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
                 break;
             }
         }
-        uint256 amountWon = potAmount * (10000 - s_rake) / 10000;
+        uint256 amountRaked = potAmount * s_rake / 10000;
+        uint256 amountTowardsJackpot = potAmount * s_jackpotContribution / 10000;
+        uint256 amountWon = potAmount - amountRaked - amountTowardsJackpot;
+        // send money to winner
         if (isFreeBet) {
             USDc.transfer(s_freeBetContractAddress, amountWon);
             freeBetContract.settleRound(winner, amountWon);
         } else {
             USDc.transfer(winner, amountWon);
         }
-        USDc.transfer(s_vaultAddress, USDc.balanceOf(address(this)));
+        // send rake to vault
+        USDc.transfer(s_vaultAddress, amountRaked);
+        // check if winner won the jackpot
+        if (checkJackpotWin(_randomWords[1])) {
+            USDc.transfer(winner, s_jackpotAmount);
+            emit JackpotWon(block.number, winner, s_jackpotAmount);
+            s_jackpotAmount = 0;
+        }
+        // reset state variables
         s_recentWinner = winner;
         delete s_unsettledBets;
+        s_jackpotAmount += amountTowardsJackpot;
+        s_potAmount = 0;
+        s_acceptingBets = true;
+        // trigger event
         emit RoundSettled(
-            block.timestamp,
             block.number,
             potAmount,
             winner,
             winningBet,
             countBettors
         );
-        s_acceptingBets = true;
+    }
+
+    /**
+     * @notice Determines whether the jackpot was won
+     * @dev Called only during the settleRound() function
+     *      Internal keyword omitted during development for convenience
+     * @param _randomWord One of the random numbers returned from the Chainlink VRF
+     */
+    function checkJackpotWin(uint256 _randomWord) /* internal */ public pure returns(bool isJackpotWinner) {
+        isJackpotWinner = _randomWord % 10000 == 0;  // 0.01%
     }
 
     /**
@@ -175,8 +204,8 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
 
         USDc.transferFrom(msg.sender, address(this), _betAmount);
         s_unsettledBets.push(Bet(msg.sender, _betAmount, false));
+        s_potAmount += _betAmount;
         emit BetAccepted(
-            block.timestamp,
             block.number,
             msg.sender,
             _betAmount
@@ -193,14 +222,15 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
      * @param _betAmount Amount to bet
      * @param _bettor User who placed the free bet
      */
-    function freeBet(uint256 _betAmount, address _bettor) external onlyFreeBetContractAddress {
+    function freeBet(uint256 _betAmount, address _bettor) external {
+        require(msg.sender == s_freeBetContractAddress, "You cannot call this function.");
         if (!s_acceptingBets) {revert LottoGame__BettingIsClosed();}
         if (_betAmount == 0) {revert LottoGame__InsufficientBetAmount();}
 
         USDc.transferFrom(msg.sender, address(this), _betAmount);
         s_unsettledBets.push(Bet(_bettor, _betAmount, true));
+        s_potAmount += _betAmount;
         emit BetAccepted(
-            block.timestamp,
             block.number,
             _bettor,
             _betAmount
@@ -232,11 +262,15 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         delete s_unsettledBets;
         s_acceptingBets = true;
         emit BetsRefunded(
-            block.timestamp,
             block.number,
             length,
             totalUSDc
         );
+    }
+
+    function addToJackpot(uint256 _amountToAdd) external {
+        USDc.transferFrom(msg.sender, address(this), _amountToAdd);
+        s_jackpotAmount += _amountToAdd;
     }
 
     function getCoordinatorAddress() external view returns(address) {
@@ -287,8 +321,20 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
         return s_freeBetContractAddress;
     }
 
+    function getPotAmount() public view returns (uint256) {
+        return s_potAmount;
+    }
+
+    function getJackpotAmount() public view returns (uint256) {
+        return s_jackpotAmount;
+    }
+
+    function getJackpotContribution() public view returns (uint16) {
+        return s_jackpotContribution;
+    }
+
     function setRake(uint16 _rake) external onlyOwner {
-        require(_rake <= 10000, "Cannot set rake to >10000 (100%).");
+        require(_rake + s_jackpotContribution <= 10000, "Rake + jackpot contribution exceeds 100%.");
         s_rake = _rake;
     }
 
@@ -299,5 +345,10 @@ contract LottoGame is VRFConsumerBaseV2, Ownable {
     function setFreeBetContractAddress(address _newFreeBetContractAddress) external onlyOwner {
         s_freeBetContractAddress = _newFreeBetContractAddress;
         freeBetContract = FreeBetContract(_newFreeBetContractAddress);
+    }
+
+    function setJackpotContribution(uint16 _newJackpotContribution) external onlyOwner {
+        require(s_rake + _newJackpotContribution <= 10000, "Rake + jackpot contribution exceeds 100%.");
+        s_jackpotContribution = _newJackpotContribution;
     }
 }
